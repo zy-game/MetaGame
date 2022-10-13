@@ -22,40 +22,60 @@ namespace GameFramework.Runtime.Assets
 
         public override void AddToReleasePool()
         {
-           
-        }
 
-        public override GameObject CreateGameObject(Transform parent=null, string assetName = "")
+        }      
+
+        public override GameObject CreateGameObject(Transform parent = null, string assetName = "")
         {
-            GameObject obj = (GameObject)LoadAsset(typeof(GameObject),assetName);
+            GameObject obj = (GameObject)LoadAsset(typeof(GameObject), assetName);
             if (obj == null)
                 return null;
-            GameObject go = Instantiate(obj , parent);
+            GameObject go = Instantiate(obj, parent);
             return go;
-        }       
+        }
 
         public override Object LoadAsset(System.Type type, string assetName = "")
         {
-            if (string.IsNullOrEmpty(assetName))
-                assetName = Path.GetFileNameWithoutExtension(path);
+            assetName = GetAssetName(assetName);
             string pt = searchPath + path;
             string dir = Path.GetDirectoryName(pt);
             if (Directory.Exists(dir))
             {
-                var t = EditorLoadAsset(type,dir, assetName);
+                var t = EditorLoadAsset(type, dir, assetName);
                 if (t) return t;
             }
 
             if (Directory.Exists(pt))
             {
-                var t = EditorLoadAsset(type,pt, assetName);
+                var t = EditorLoadAsset(type, pt, assetName);
                 if (t) return t;
             }
 
             return null;
-        }             
+        }
 
-        private Object EditorLoadAsset(System.Type type, string dir, string fileName) 
+        public override T LoadAsset<T>(string assetName = "")
+        {
+            assetName = GetAssetName(assetName);
+            string pt = searchPath + path;
+            string dir = Path.GetDirectoryName(pt);
+            if (Directory.Exists(dir))
+            {
+                var t = EditorLoadAsset(typeof(T), dir, assetName);
+                if (t) return t as T;
+            }
+
+            if (Directory.Exists(pt))
+            {
+                var t = EditorLoadAsset(typeof(T), pt, assetName);
+                if (t) return t as T;
+            }
+
+            return null;
+        }
+
+
+        private Object EditorLoadAsset(System.Type type, string dir, string fileName)
         {
             string[] files = Directory.GetFiles(dir, fileName + ".*");
 
@@ -71,11 +91,11 @@ namespace GameFramework.Runtime.Assets
                 }
             }
             return null;
-        }        
+        }
 
         public override AssetHandleAsync<GameObject> CreateGameObjectAsync(Transform parent = null, string assetName = "")
         {
-            AssetHandleAsync<GameObject> handleAsync =  AssetHandleAsync<GameObject>.Get();
+            AssetHandleAsync<GameObject> handleAsync = AssetHandleAsync<GameObject>.Get();
             CorManager.Instance.StartCoroutine(LoadCor(typeof(GameObject), (obj) =>
             {
                 if (obj == null)
@@ -83,7 +103,7 @@ namespace GameFramework.Runtime.Assets
                     handleAsync.Finished(null);
                     return;
                 }
-                GameObject go=Instantiate(obj as GameObject,parent);               
+                GameObject go = Instantiate(obj as GameObject, parent);
                 handleAsync.Finished(go);
             }, assetName));
             return handleAsync;
@@ -91,20 +111,31 @@ namespace GameFramework.Runtime.Assets
 
         public override AssetHandleAsync<Object> LoadAssetAsync(System.Type type, string assetName = "")
         {
-            AssetHandleAsync<Object> handleAsync =  AssetHandleAsync<Object>.Get();
-            CorManager.Instance.StartCoroutine(LoadCor(type,(t)=> 
+            AssetHandleAsync<Object> handleAsync = AssetHandleAsync<Object>.Get();
+            CorManager.Instance.StartCoroutine(LoadCor(type, (t) =>
+             {
+                 handleAsync.Finished(t);
+             }, assetName));
+
+            return handleAsync;
+        }
+
+        public override AssetHandleAsync<T> LoadAssetAsync<T>(string assetName = "")
+        {
+            AssetHandleAsync<T> handleAsync = AssetHandleAsync<T>.Get();
+            CorManager.Instance.StartCoroutine(LoadCor(typeof(T), (t) =>
             {
-                handleAsync.Finished(t);
-            },assetName));
+                handleAsync.Finished(t as T);
+            }, assetName));
 
             return handleAsync;
         }
 
         //编辑器下模拟异步加载
-        private IEnumerator LoadCor(System.Type type,  System.Action<Object> func, string assetName) 
+        private IEnumerator LoadCor(System.Type type, System.Action<Object> func, string assetName)
         {
             yield return null;
-            var obj = LoadAsset(type,assetName);
+            var obj = LoadAsset(type, assetName);
             func(obj);
         }
 
@@ -119,10 +150,9 @@ namespace GameFramework.Runtime.Assets
             return EditorSceneManager.LoadSceneAsyncInPlayMode(scenePath, default);
         }
 
-        private string GetAssetFullPath(string assetName="") 
+        private string GetAssetFullPath(string assetName = "")
         {
-            if (string.IsNullOrEmpty(assetName))
-                assetName = Path.GetFileNameWithoutExtension(path);
+            assetName = GetAssetName(assetName);
             string pt = searchPath + path;
             string dir = Path.GetDirectoryName(pt);
             string[] files = Directory.GetFiles(dir, assetName + ".*");

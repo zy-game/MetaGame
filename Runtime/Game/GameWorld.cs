@@ -203,7 +203,6 @@ namespace GameFramework.Runtime.Game
                 fixedUpdate.Call(table, this);
             }
             skybox.FixedUpdate();
-            UIManager.FixedUpdate();
             AudioManager.FixedUpdate();
         }
 
@@ -267,18 +266,18 @@ namespace GameFramework.Runtime.Game
         /// <summary>
         /// 创建一个游戏实体对象
         /// </summary>
-        /// <param name="name">实体名称</param>
+        /// <param name="path">实体名称</param>
         /// <param name="guid">实体唯一ID</param>
         /// <param name="contextName">连接的实体资源</param>
         /// <returns></returns>
-        public IEntity CreateEntity(string name, string guid)
+        public IEntity CreateEntity(string path, string guid)
         {
             guid = guid.Replace("-", "");
             if (HasEntity(guid))
             {
                 throw new Exception("the entity guid is already exist");
             }
-            GameEntity entity = new GameEntity(this, name, guid);
+            GameEntity entity = new GameEntity(this, path, guid);
             entitys.Add(entity);
             return entity;
         }

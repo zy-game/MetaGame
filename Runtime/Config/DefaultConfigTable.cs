@@ -63,7 +63,7 @@ namespace GameFramework.Runtime.Config
         internal async void LoadConfig(string configName)
         {
             configName = configName.EndsWith(AppConst.ConfigExtension) ? configName : configName + AppConst.ConfigExtension;
-            byte[] bytes = await Utility.ReadFileDataAsync(AppConst.ConfigPath + configName);
+            byte[] bytes = GZip.unzip(await Utility.ReadFileDataAsync(AppConst.ConfigPath + configName), AppConst.config.compressPassword);
             if (bytes == null || bytes.Length <= 0)
             {
                 return;

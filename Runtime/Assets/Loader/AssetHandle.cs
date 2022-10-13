@@ -1,4 +1,5 @@
 ﻿
+using System.IO;
 using UnityEngine;
 
 namespace GameFramework.Runtime.Assets
@@ -55,6 +56,13 @@ namespace GameFramework.Runtime.Assets
             return go;
         }
 
+        protected string GetAssetName(string assetName)
+        {
+            if (string.IsNullOrEmpty(assetName))
+                assetName = Path.GetFileNameWithoutExtension(path);
+            return assetName;
+        }
+
         //添加到释放对象池
         public abstract void AddToReleasePool();
 
@@ -74,6 +82,8 @@ namespace GameFramework.Runtime.Assets
         /// <returns></returns>
         public abstract Object LoadAsset(System.Type type, string assetName = "");
 
+        public virtual T LoadAsset<T>(string assetName = "") where T:Object { return null; }
+
         /// <summary>
         /// 异步创建游戏对象
         /// </summary>
@@ -89,6 +99,8 @@ namespace GameFramework.Runtime.Assets
         /// <param name="assetName"></param>
         /// <returns></returns>
         public abstract AssetHandleAsync<Object> LoadAssetAsync(System.Type type, string assetName = "");
+
+        public virtual AssetHandleAsync<T> LoadAssetAsync<T>(string assetName = "") where T:Object { return null; }
 
         /// <summary>
         /// 异步加载场景

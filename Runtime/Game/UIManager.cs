@@ -54,17 +54,6 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 轮询所有UI
-        /// </summary>
-        public void FixedUpdate()
-        {
-            foreach (var item in handlers.Values)
-            {
-                item.FixedUpdate();
-            }
-        }
-
-        /// <summary>
         /// 打开UI
         /// </summary>
         /// <param name="name"></param>
@@ -198,6 +187,20 @@ namespace GameFramework.Runtime.Game
             return loading;
         }
 
+        private CommonAwaiting awaiting = null;
+        public IAwaiting OnAwaitLoading()
+        {
+            if (awaiting != null) return awaiting;
+            awaiting = new CommonAwaiting();
+            if (!layers.TryGetValue(LOADING_UI_LAYER, out Canvas canvas))
+            {
+                canvas = CreateCanvas(LOADING_UI_LAYER);
+                layers.Add(LOADING_UI_LAYER, canvas);
+            }
+            awaiting.gameObject.SetParent(canvas.transform);
+            return awaiting;
+        }
+
         public IMessageBox OnMsgBox(string text, GameFrameworkAction ok = null, GameFrameworkAction cancel = null)
         {
             CommonMessageBox messageBox = new CommonMessageBox(text);
@@ -247,7 +250,5 @@ namespace GameFramework.Runtime.Game
             }
             GameObject.DestroyImmediate(canvas.gameObject);
         }
-
-
     }
 }

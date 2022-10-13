@@ -43,7 +43,6 @@ namespace GameFramework.Runtime.Assets
                 versionAsync.Finished();
                 yield break;
             }
-
             yield return LoadRomoteConfig();
 
             yield return LoadRemoteVersion();//下载远程资源版本配置
@@ -154,6 +153,7 @@ namespace GameFramework.Runtime.Assets
         //获取远程版本配置
         private IEnumerator LoadRemoteVersion()
         {
+            Debug.Log(remoteVersion==null);
             if (remoteVersion != null) yield break;
             string url = AppConst.config.asseturl + AppConst.PlatformName + "/" + versionFileName;
             using UnityWebRequest request = UnityWebRequest.Get(url);

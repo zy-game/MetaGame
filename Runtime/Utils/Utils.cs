@@ -45,7 +45,7 @@ namespace GameFramework
     }
 
     [XLua.LuaCallCSharp]
-    public static class Utility
+    public static partial class Utility
     {
         public static Transform EmptyTransform = null;
         public static GameObject EmptyGameObject = null;

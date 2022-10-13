@@ -66,8 +66,18 @@ namespace GameFramework.Runtime.Assets
             AssetHandleAsync<Object> handleAsync = AssetHandleAsync<Object>.Get();
             CorManager.Instance.DelayCall(this, 0, () =>
             {
-                Debug.LogError("远程资源已经加载过了,使用同步加载方式");
-                handleAsync.Finished(null);
+                handleAsync.Finished(LoadAsset(type,assetName));
+            });
+            return handleAsync;
+        }
+
+
+        public override AssetHandleAsync<T> LoadAssetAsync<T>(string assetName = "")
+        {
+            AssetHandleAsync<T> handleAsync = AssetHandleAsync<T>.Get();
+            CorManager.Instance.DelayCall(this, 0, () =>
+            {
+                handleAsync.Finished(LoadAsset<T>(assetName));
             });
             return handleAsync;
         }
@@ -88,6 +98,11 @@ namespace GameFramework.Runtime.Assets
                 default:
                     return null;
             }
+        }
+
+        public override T LoadAsset<T>(string assetName = "")
+        {
+            return LoadAsset(typeof(T), assetName) as T;
         }
 
         public void SetAsset(UnityWebRequest request,string localPath)

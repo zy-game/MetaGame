@@ -74,6 +74,31 @@ namespace GameFramework.Runtime.Assets
             return obj;
         }
 
+        public override T LoadAsset<T>(string assetName = "")
+        {
+            if (string.IsNullOrEmpty(assetName))
+                assetName = pathAssetName;
+
+            if (lastLoadAsset != null && assetName.Equals(lastLoadAssetName))
+                return lastLoadAsset as T;
+
+            if (assetBundle == null)
+            {
+                Debug.LogError("加载资源错误,AssetBundle为空:" + path);
+                return null;
+            }
+
+            var obj = assetBundle.LoadAsset<T>(assetName);
+            if (!obj)
+            {
+                Debug.LogError(string.Format("加载资源Path:{0}错误,找不到对应的资源:{1}", path, assetName));
+                return null;
+            }
+            lastLoadAsset = obj;
+            lastLoadAssetName = assetName;
+            return obj;
+        }
+
         public override AssetHandleAsync<GameObject> CreateGameObjectAsync(Transform parent = null, string assetName = "")
         {
             if (string.IsNullOrEmpty(assetName))
@@ -104,6 +129,18 @@ namespace GameFramework.Runtime.Assets
             return handleAsync;
         }
 
+        public override AssetHandleAsync<T> LoadAssetAsync<T>(string assetName = "")
+        {
+            if (string.IsNullOrEmpty(assetName))
+                assetName = pathAssetName;
+            AssetHandleAsync<T> handleAsync = AssetHandleAsync<T>.Get();
+            CorManager.Instance.StartCoroutine(LoadCor<T>((obj) =>
+            {
+                handleAsync.Finished(obj);
+            }, assetName));
+            return handleAsync;
+        }
+
         private IEnumerator LoadCor(Type type, Action<Object> func, string assetName)
         {
             if (lastLoadAsset != null && assetName.Equals(lastLoadAssetName))
@@ -124,6 +161,28 @@ namespace GameFramework.Runtime.Assets
                 Debug.LogError(string.Format("加载资源Path:{0}错误,找不到对应的资源:{1}", path, assetName));
             }
             func(request.asset);
+        }
+
+        private IEnumerator LoadCor<T>(Action<T> func, string assetName) where T:Object
+        {
+            if (lastLoadAsset != null && assetName.Equals(lastLoadAssetName))
+            {
+                yield return null;
+                func(lastLoadAsset as T);
+                yield break;
+            }
+            var request = assetBundle.LoadAssetAsync<T>(assetName);
+            yield return request;
+            if (request.asset)
+            {
+                lastLoadAsset = request.asset;
+                lastLoadAssetName = assetName;
+            }
+            else
+            {
+                Debug.LogError(string.Format("加载资源Path:{0}错误,找不到对应的资源:{1}", path, assetName));
+            }
+            func(request.asset as T);
         }
 
         public override string[] GetDepends()

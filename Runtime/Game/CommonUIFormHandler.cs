@@ -16,16 +16,97 @@ namespace GameFramework.Runtime.Game
     }
     public sealed class CommonUIFormHandler : IUIHandler
     {
+
+        class LuaAdapter : GObject
+        {
+            private LuaTable table;
+            private CommonUIFormHandler handler;
+            private LuaFunction _start;
+            private LuaFunction _dispose;
+            private LuaFunction _disable;
+            private LuaFunction _enable;
+            private LuaFunction _eventHandle;
+            private LuaFunction _fixedUpdate;
+
+            public int layer { get; }
+
+
+            public LuaAdapter(LuaTable table, CommonUIFormHandler handler)
+            {
+                if (table == null)
+                {
+                    return;
+                }
+                this.handler = handler;
+                this.layer = table.Get<int>("layer");
+                _start = table.Get<LuaFunction>("start");
+                _dispose = table.Get<LuaFunction>("dispose");
+                _disable = table.Get<LuaFunction>("disable");
+                _enable = table.Get<LuaFunction>("enable");
+                _fixedUpdate = table.Get<LuaFunction>("update");
+                _eventHandle = table.Get<LuaFunction>("event");
+            }
+
+            public void Start()
+            {
+                if (_start == null)
+                {
+                    return;
+                }
+                _start.Call(table, handler);
+            }
+
+            public void Disable()
+            {
+                if (_disable == null)
+                {
+                    return;
+                }
+                _disable.Call(table, handler);
+            }
+
+            public void Enable()
+            {
+                if (_enable == null)
+                {
+                    return;
+                }
+                _enable.Call(table, handler);
+            }
+
+            public void EventHandle(string eventId, GameObject sender, object args)
+            {
+                if (_eventHandle == null)
+                {
+                    return;
+                }
+                _eventHandle.Call(table, handler, eventId, sender, args);
+            }
+
+            public void Dispose()
+            {
+                if (_dispose == null)
+                {
+                    return;
+                }
+                _dispose.Call(table, handler);
+            }
+        }
         public int layer
         {
-            get;
-            private set;
+            get
+            {
+                if (adapter == null)
+                {
+                    return -1;
+                }
+                return adapter.layer;
+            }
         }
 
         public string name
         {
             get;
-            private set;
         }
 
         public GameObject gameObject
@@ -33,19 +114,25 @@ namespace GameFramework.Runtime.Game
             get;
         }
 
-        public Camera UICamera { get; private set; }
-        public Canvas canvas { get; set; }
+        public Camera UICamera
+        {
+            get;
+            private set;
+        }
+        public Canvas canvas
+        {
+            get;
+            set;
+        }
 
         private IUIManager manager;
-        private LuaTable table;
-        private LuaFunction _start;
-        private LuaFunction _dispose;
-        private LuaFunction _disable;
-        private LuaFunction _enable;
-        private LuaFunction _eventHandle;
-        private LuaFunction _fixedUpdate;
+        private LuaAdapter adapter;
+
 
         private Dictionary<string, RectTransform> childs;
+
+        private Dictionary<string, List<RectTransform>> clones;
+        private Dictionary<string, Queue<RectTransform>> cloneCaches;
 
         /// <summary>
         /// UI管道
@@ -55,22 +142,10 @@ namespace GameFramework.Runtime.Game
         public CommonUIFormHandler(IUIManager uIManager, string name, GameObject gameObject, LuaTable table)
         {
             this.manager = uIManager;
-            this.table = table;
             this.gameObject = gameObject;
             this.name = name;
             this.UICamera = uIManager.UICamera;
-            if (table == null)
-            {
-                return;
-            }
-
-            this.layer = table.Get<int>("layer");
-            _start = table.Get<LuaFunction>("start");
-            _dispose = table.Get<LuaFunction>("dispose");
-            _disable = table.Get<LuaFunction>("disable");
-            _enable = table.Get<LuaFunction>("enable");
-            _fixedUpdate = table.Get<LuaFunction>("update");
-            _eventHandle = table.Get<LuaFunction>("event");
+            adapter = new LuaAdapter(table, this);
         }
 
         /// <summary>
@@ -78,10 +153,8 @@ namespace GameFramework.Runtime.Game
         /// </summary>
         public void Dispose()
         {
-            if (_dispose != null)
-            {
-                _dispose.Call(table, this);
-            }
+            adapter.Dispose();
+            adapter = null;
             GameObject.DestroyImmediate(this.gameObject);
         }
 
@@ -91,10 +164,7 @@ namespace GameFramework.Runtime.Game
         public void OnDisable()
         {
             this.gameObject.SetActive(false);
-            if (_disable != null)
-            {
-                _disable.Call(table, this);
-            }
+            adapter.Disable();
         }
 
         /// <summary>
@@ -103,10 +173,7 @@ namespace GameFramework.Runtime.Game
         public void OnEnable()
         {
             this.gameObject.SetActive(true);
-            if (_enable != null)
-            {
-                _enable.Call(table, this);
-            }
+            adapter.Enable();
         }
 
         /// <summary>
@@ -115,6 +182,8 @@ namespace GameFramework.Runtime.Game
         public void Start()
         {
             childs = new Dictionary<string, RectTransform>();
+            clones = new Dictionary<string, List<RectTransform>>();
+            cloneCaches = new Dictionary<string, Queue<RectTransform>>();
             RectTransform[] transforms = this.gameObject.transform.GetComponentsInChildren<RectTransform>(true);
             for (int i = 0; i < transforms.Length; i++)
             {
@@ -140,11 +209,88 @@ namespace GameFramework.Runtime.Game
                     OnNotify(item.gameObject.name, eventObject, args);
                 });
             }
-            if (_start == null)
+            adapter.Start();
+        }
+        /// <summary>
+        /// 克隆对象
+        /// </summary>
+        /// <param name="name"></param>
+        public void Instantiate(string name)
+        {
+            Instantiate(name, null);
+        }
+
+        /// <summary>
+        /// 克隆对象
+        /// </summary>
+        /// <param name="name"></param>
+        public void Instantiate(string name, GameFrameworkAction<GameObject> OnClick)
+        {
+            RectTransform transform = null;
+            if (cloneCaches.TryGetValue(name, out Queue<RectTransform> queue))
+            {
+                if (queue.Count > 0)
+                {
+                    transform = queue.Dequeue();
+                }
+                else
+                {
+                    GameObject template = GetChild(name);
+                    if (template == null)
+                    {
+                        Debug.LogError(template);
+                        return;
+                    }
+                    transform = GameObject.Instantiate<GameObject>(template).GetComponent<RectTransform>();
+                    transform.name = template.name;
+                }
+            }
+            if (!clones.TryGetValue(name, out List<RectTransform> temps))
+            {
+                clones.Add(name, temps = new List<RectTransform>());
+            }
+            
+            if (OnClick == null)
             {
                 return;
             }
-            _start.Call(table, this);
+            UnityEngine.UI.Button buttons = transform.GetComponent<UnityEngine.UI.Button>();
+            buttons.onClick.AddListener(() =>
+            {
+                OnClick(transform.gameObject);
+            });
+        }
+
+        /// <summary>
+        /// 清理克隆物体
+        /// </summary>
+        /// <param name="isCache"></param>
+        public void ClearClone(string name, bool isCache = true)
+        {
+            if (!clones.TryGetValue(name, out List<RectTransform> temps))
+            {
+                return;
+            }
+            if (!cloneCaches.TryGetValue(name, out Queue<RectTransform> cache))
+            {
+                if (isCache)
+                {
+                    cloneCaches.Add(name, cache = new Queue<RectTransform>());
+                }
+            }
+            for (var i = 0; i < temps.Count; i++)
+            {
+                if (isCache)
+                {
+                    cache.Enqueue(temps[i]);
+                }
+                else
+                {
+                    GameObject.DestroyImmediate(temps[i].gameObject);
+                }
+            }
+            temps.Clear();
+            clones.Remove(name);
         }
 
         /// <summary>
@@ -155,115 +301,7 @@ namespace GameFramework.Runtime.Game
         /// <param name="args"></param>
         public void OnNotify(string eventId, GameObject sender, object args)
         {
-            if (_eventHandle == null)
-            {
-                return;
-            }
-            _eventHandle.Call(table, this, eventId, sender, args);
-        }
-
-
-        /// <summary>
-        /// 移动动画
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="paths"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        public void TweenMovement(string name, Vector3[] paths, float time, Action callback = null)
-        {
-            if (!childs.TryGetValue(name, out RectTransform child))
-            {
-                return;
-            }
-            child.DOLocalPath(paths, time, PathType.Linear).OnComplete(() =>
-            {
-                if (callback != null)
-                {
-                    callback();
-                }
-            });
-        }
-
-        /// <summary>
-        /// 旋转动画
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="endValue"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        public void TweenRotation(string name, Vector3 endValue, float time, Action callback = null)
-        {
-            if (!childs.TryGetValue(name, out RectTransform child))
-            {
-                return;
-            }
-            child.DOLocalRotate(endValue, time, RotateMode.FastBeyond360).OnComplete(() =>
-            {
-                if (callback != null)
-                {
-                    callback();
-                }
-            });
-        }
-
-        /// <summary>
-        /// 缩放动画
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="endValue"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        public void TweenScale(string name, Vector3 endValue, float time, Action callback = null)
-        {
-            if (!childs.TryGetValue(name, out RectTransform child))
-            {
-                return;
-            }
-            child.DOScale(endValue, time).OnComplete(() =>
-            {
-                if (callback != null)
-                {
-                    callback();
-                }
-            });
-        }
-
-        /// <summary>
-        /// 颜色动画
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="color"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        public void TweenColor(string name, Color color, float time, Action callback = null)
-        {
-            if (!childs.TryGetValue(name, out RectTransform child))
-            {
-                return;
-            }
-            UnityEngine.UI.Image image = child.GetComponent<UnityEngine.UI.Image>();
-            if (image != null)
-            {
-                image.DOColor(color, time).OnComplete(() =>
-                {
-                    if (callback != null)
-                    {
-                        callback();
-                    }
-                });
-            }
-            UnityEngine.UI.Text text = child.GetComponent<UnityEngine.UI.Text>();
-            if (image != null)
-            {
-                image.DOColor(color, time).OnComplete(() =>
-                {
-                    if (callback != null)
-                    {
-                        callback();
-                    }
-                });
-            }
+            adapter.EventHandle(eventId, sender, args);
         }
 
         /// <summary>
@@ -316,18 +354,6 @@ namespace GameFramework.Runtime.Game
                 return;
             }
             image.sprite = sprite;
-        }
-
-        /// <summary>
-        /// 轮询
-        /// </summary>
-        public void FixedUpdate()
-        {
-            if (_fixedUpdate == null)
-            {
-                return;
-            }
-            _fixedUpdate.Call(table);
         }
 
         /// <summary>

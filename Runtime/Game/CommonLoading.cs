@@ -72,7 +72,6 @@ namespace GameFramework.Runtime.Game
 
         public void Dispose()
         {
-            throw new System.NotImplementedException();
         }
     }
 }

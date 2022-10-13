@@ -10,12 +10,13 @@ namespace UixFramework
 
         protected override Tweener GetTweener()
         {
-            Tweener t = t_target.DOAnchorPos(end, duration);
-            t.SetEase(curve);
-            if (loops == 0)
-                loops = int.MaxValue;
-            t.SetLoops(loops, loopType);
-            return t;
+            // Tweener t = t_target.DOAnchorPos(end, duration);
+            // t.SetEase(curve);
+            // if (loops == 0)
+            //     loops = int.MaxValue;
+            // t.SetLoops(loops, loopType);
+            // return t;
+            return default;
         }
 
         protected override void Init()

@@ -37,6 +37,8 @@ namespace GameFramework
         /// <value></value>
         Canvas canvas { get; set; }
 
+
+
         /// <summary>
         /// 启动UI
         /// </summary>
@@ -51,11 +53,6 @@ namespace GameFramework
         /// 隐藏UI
         /// </summary>
         void OnDisable();
-
-        /// <summary>
-        /// 轮询UI
-        /// </summary>
-        void FixedUpdate();
 
         /// <summary>
         /// 设置UI层级
@@ -114,41 +111,21 @@ namespace GameFramework
         void OnNotify(string eventId, GameObject sender, object args);
 
         /// <summary>
-        /// 位移动画
+        /// 克隆对象
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="paths"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        void TweenMovement(string name, Vector3[] paths, float time, Action callback = null);
+        void Instantiate(string name);
 
         /// <summary>
-        /// 旋转动画
+        /// 克隆对象
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="endValue"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        void TweenRotation(string name, Vector3 endValue, float time, Action callback = null);
-
-        /// <summary>
-        /// 缩放动画
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="endValue"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        void TweenScale(string name, Vector3 endValue, float time, Action callback = null);
-
-        /// <summary>
-        /// 颜色动画
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="color"></param>
-        /// <param name="time"></param>
-        /// <param name="callback"></param>
-        void TweenColor(string name, Color color, float time, Action callback = null);
-
+        void Instantiate(string name, GameFrameworkAction<GameObject> OnClick);
         
+        /// <summary>
+        /// 清理克隆物体
+        /// </summary>
+        /// <param name="isCache"></param>
+        void ClearClone(string name, bool isCache = true);
     }
 }

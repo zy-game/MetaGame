@@ -72,5 +72,47 @@ namespace GameFramework.Runtime.Assets
             assetLoad.UnloadByPackageName(packageName, unloadAllLoadedObjects);
         }
 
+        public GameObject CreateGameObject(string path, Transform parent = null, string assetName = "")
+        {
+            AssetHandle handle = Load(path);
+            if (handle == null) return null;
+            GameObject go = handle.CreateGameObject(parent, assetName);
+            SetAssetBundleBehaviour(go, handle);
+            return go;
+        }
+
+        public void CreateGameObjectAsync(string path, System.Action<GameObject> func, Transform parent = null, string assetName = "")
+        {
+            LoadAsync(path).callback = (handle) =>
+            {
+                if (handle == null)
+                {
+                    func?.Invoke(null);
+                    return;
+                }
+
+                handle.CreateGameObjectAsync(parent, assetName).callback = (go) =>
+                {
+                    SetAssetBundleBehaviour(go, handle);
+                    func?.Invoke(go);
+                };
+            };
+        }
+
+        //public T LoadAsset<T>(string path, GameObject bindGameObject = null, string assetName = "") where T : Object
+        //{
+        //    AssetHandle handle = Load(path);
+        //    if (handle == null) return null;
+        //    handle.LoadAsset
+        //}
+
+        public void SetAssetBundleBehaviour(GameObject go, AssetHandle assetHandle)
+        {
+            if (!go) return;
+            var behaviour = go.GetComponent<AssetBundleBehaviour>();
+            if (!behaviour) behaviour = go.AddComponent<AssetBundleBehaviour>();
+            behaviour.AddAssetHandle(assetHandle);
+        }
+
     }
 }

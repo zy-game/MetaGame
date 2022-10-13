@@ -9,7 +9,7 @@ public class Singleton<T> :IDisposable where T : new()
         get
         {
             if (instance == null)
-            {
+            {              
                 instance = new T();
             }
             return instance;

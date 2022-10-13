@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using System.Text;
 
 namespace GameFramework.Runtime.Config
 {
@@ -34,6 +35,17 @@ namespace GameFramework.Runtime.Config
             }
             configs.Add(configName, defaultConfigTable);
             return table;
+        }
+
+        public string LoadLuaConfig(string configName)
+        {
+            configName = configName.EndsWith(AppConst.ConfigExtension) ? configName : configName + AppConst.ConfigExtension;
+            byte[] bytes = GZip.unzip(Utility.ReadFileData(AppConst.ConfigPath + configName), AppConst.config.compressPassword);
+            if (bytes == null || bytes.Length <= 0)
+            {
+                return string.Empty;
+            }
+            return Encoding.UTF8.GetString(bytes);
         }
 
         /// <summary>

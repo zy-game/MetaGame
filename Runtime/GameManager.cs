@@ -8,7 +8,7 @@ using UnityEngine.Networking;
 public class GameManager : MonoBehaviour
 {
     IEnumerator Start()
-    {
+    { 
         Application.targetFrameRate = 60;
         DontDestroyOnLoad(gameObject);
         yield return AppConst.LoadLocalConfig();

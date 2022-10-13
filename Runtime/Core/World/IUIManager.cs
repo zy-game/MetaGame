@@ -22,11 +22,6 @@ namespace GameFramework
         IUIHandler current { get; }
 
         /// <summary>
-        /// 轮询
-        /// </summary>
-        void FixedUpdate();
-
-        /// <summary>
         /// 打开UI
         /// </summary>
         /// <param name="name"></param>
@@ -69,6 +64,12 @@ namespace GameFramework
         /// </summary>
         /// <returns></returns>
         ILoading OnLoading();
+        
+        /// <summary>
+        /// 显示等待
+        /// </summary>
+        /// <returns></returns>
+        IAwaiting OnAwaitLoading();
 
         /// <summary>
         /// 显示一个提示窗口
@@ -108,6 +109,11 @@ namespace GameFramework
     {
         string text { get; set; }
         string version { get; set; }
+        GameObject gameObject { get; }
+    }
+    
+    public interface IAwaiting : GObject
+    {
         GameObject gameObject { get; }
     }
 }

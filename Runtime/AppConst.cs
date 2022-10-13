@@ -37,6 +37,17 @@ public static class AppConst
         }
     }
 
+    private static int mobilePlatform=-1;
+    public static bool IsMobilePlatform
+    {
+        get
+        {
+            if (mobilePlatform == -1)
+                mobilePlatform = Application.isMobilePlatform ? 1 : 0;
+            return mobilePlatform == 1;
+        }
+    }
+
     public static string ConfigPath
     {
         get
@@ -45,7 +56,7 @@ public static class AppConst
         }
     }
 
-    public static string ConfigExtension
+	public static string ConfigExtension
     {
         get
         {
@@ -141,19 +152,17 @@ public static class AppConst
     public static IEnumerator LoadLocalConfig()
     {
         string path = AppConfigPath;
-        using (UnityWebRequest request = UnityWebRequest.Get(path))
-        {
-            yield return request.SendWebRequest();
+        using UnityWebRequest request = UnityWebRequest.Get(path);
+        yield return request.SendWebRequest();
 
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                config = JsonObject.Deserialize<LocalCommonConfig>(request.downloadHandler.text);
-                yield break;
-            }
-            else
-            {
-                Debug.LogError("加载本地配置错误!");
-            }
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            config = JsonObject.Deserialize<LocalCommonConfig>(request.downloadHandler.text);
+            yield break;
+        }
+        else
+        {
+            Debug.LogError("加载本地配置错误!");
         }
     }
 
