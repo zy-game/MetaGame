@@ -4,6 +4,7 @@ using System.Linq;
 using XLua;
 using GameFramework.Runtime.Assets;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
 
 namespace GameFramework.Runtime.Game
 {
@@ -19,6 +20,7 @@ namespace GameFramework.Runtime.Game
         private Dictionary<string, IUIHandler> handlers;
         private const int MESSAGE_BOX_UI_LAYER = 999;
         private const int LOADING_UI_LAYER = 998;
+        private Vector2 screenSize = Vector2.zero;
 
         public Camera UICamera { get; private set; }
 
@@ -28,14 +30,13 @@ namespace GameFramework.Runtime.Game
             private set;
         }
 
-        public UIManager(GameWorld world)
+        public UIManager(GameWorld world, Vector2 screenSize)
         {
             this.gameWorld = world;
+            this.screenSize = screenSize;
             UICamera = GameObject.Instantiate<Camera>(Resources.Load<Camera>("Camera/UICamera"));
             UICamera.name = world.name + "_UICamera";
-            UICamera.gameObject.SetParent(Utility.EmptyTransform);
-            UniversalAdditionalCameraData universalAdditionalCameraData = world.WorldCamera.GetComponent<UniversalAdditionalCameraData>();
-            universalAdditionalCameraData.cameraStack.Add(UICamera);
+            UICamera.gameObject.SetParent(StaticMethod.EmptyTransform);
             layers = new Dictionary<int, Canvas>();
             caches = new Dictionary<string, IUIHandler>();
             handlers = new Dictionary<string, IUIHandler>();
@@ -47,10 +48,69 @@ namespace GameFramework.Runtime.Game
         /// <param name="active"></param>
         public void SetActive(bool active)
         {
-            foreach (var item in layers.Values)
+            if (UICamera == null)
             {
-                item.gameObject.SetActive(active);
+                return;
             }
+            UICamera.gameObject.SetActive(active);
+        }
+
+        public IUIHandler OpenUI(string path, string name, LuaTable table)
+        {
+            if (caches.TryGetValue(name, out IUIHandler uiHandler))
+            {
+                caches.Remove(name);
+                handlers.Add(name, uiHandler);
+                uiHandler.OnEnable();
+                return uiHandler;
+            }
+
+            AssetHandle handle = ResourcesManager.Instance.Load(path);
+            if (handle == null)
+            {
+                return default;
+            }
+            GameObject gameObject = handle.CreateGameObject(null, name);
+            if (gameObject == null)
+            {
+                return default;
+            }
+            gameObject.AddComponent<AssetBundleBehaviour>().AddAssetHandle(handle);
+            uiHandler = new CommonUIFormHandler(this, gameObject.name, gameObject, table);
+            ToLayer(uiHandler, uiHandler.layer);
+            handlers.Add(gameObject.name, uiHandler);
+            uiHandler.Start();
+            uiHandler.OnEnable();
+            return uiHandler;
+        }
+
+        public IUIHandler OpenUI(string name, LuaTable table)
+        {
+            if (caches.TryGetValue(name, out IUIHandler uiHandler))
+            {
+                caches.Remove(name);
+                handlers.Add(name, uiHandler);
+                uiHandler.OnEnable();
+                return uiHandler;
+            }
+            AssetHandle handle = ResourcesManager.Instance.Load(name);
+            if (handle == null)
+            {
+                return default;
+            }
+            GameObject gameObject = handle.CreateGameObject();
+            if (gameObject == null)
+            {
+                return default;
+            }
+            gameObject.AddComponent<AssetBundleBehaviour>().AddAssetHandle(handle);
+            gameObject.AddComponent<AssetBundleBehaviour>().AddAssetHandle(handle);
+            uiHandler = new CommonUIFormHandler(this, gameObject.name, gameObject, table);
+            ToLayer(uiHandler, uiHandler.layer);
+            handlers.Add(gameObject.name, uiHandler);
+            uiHandler.Start();
+            uiHandler.OnEnable();
+            return uiHandler;
         }
 
         /// <summary>
@@ -77,6 +137,7 @@ namespace GameFramework.Runtime.Game
             {
                 return default;
             }
+            gameObject.AddComponent<AssetBundleBehaviour>().AddAssetHandle(handle);
             LuaTable table = LuaManager.Instance.GetTable(gameObject.name);
             uiHandler = new CommonUIFormHandler(this, gameObject.name, gameObject, table);
             ToLayer(uiHandler, uiHandler.layer);
@@ -140,7 +201,9 @@ namespace GameFramework.Runtime.Game
         public void Dispose()
         {
             Clear();
-            GameObject.DestroyImmediate(UICamera);
+            //UniversalAdditionalCameraData universalAdditionalCameraData = gameWorld.WorldCamera.GetComponent<UniversalAdditionalCameraData>();
+            //universalAdditionalCameraData.cameraStack.Remove(UICamera);
+            GameObject.DestroyImmediate(UICamera.gameObject);
             UICamera = null;
         }
 
@@ -190,7 +253,11 @@ namespace GameFramework.Runtime.Game
         private CommonAwaiting awaiting = null;
         public IAwaiting OnAwaitLoading()
         {
-            if (awaiting != null) return awaiting;
+            if (awaiting != null)
+            {
+                awaiting.OnEnable();
+                return awaiting;
+            }
             awaiting = new CommonAwaiting();
             if (!layers.TryGetValue(LOADING_UI_LAYER, out Canvas canvas))
             {
@@ -200,27 +267,52 @@ namespace GameFramework.Runtime.Game
             awaiting.gameObject.SetParent(canvas.transform);
             return awaiting;
         }
-
+        class MsgUnit
+        {
+            public string text;
+            public string tilet;
+            public GameFrameworkAction ok, cancel;
+        }
+        private IMessageBox currentMsgBox;
+        private Queue<MsgUnit> msgQueue = new Queue<MsgUnit>();
         public IMessageBox OnMsgBox(string text, GameFrameworkAction ok = null, GameFrameworkAction cancel = null)
         {
-            CommonMessageBox messageBox = new CommonMessageBox(text);
-            if (ok != null)
+            if (currentMsgBox != null)
             {
-                messageBox.entry += ok;
+                msgQueue.Enqueue(new MsgUnit() { text = text, tilet = "Tips", ok = ok, cancel = cancel });
+                return currentMsgBox;
             }
-            if (cancel != null)
+            currentMsgBox = new CommonMessageBox();
+            void Cancel()
             {
-                messageBox.cancel += cancel;
+                currentMsgBox.Dispose();
+                currentMsgBox = null;
+                CheckWaitingShowMsgBox();
+                cancel?.Invoke();
             }
-            messageBox.tilet = "Tips";
+            void Entry()
+            {
+                currentMsgBox.Dispose();
+                currentMsgBox = null;
+                CheckWaitingShowMsgBox();
+                ok?.Invoke();
+            }
             if (!layers.TryGetValue(MESSAGE_BOX_UI_LAYER, out Canvas canvas))
             {
-                canvas = CreateCanvas(MESSAGE_BOX_UI_LAYER);
-                layers.Add(MESSAGE_BOX_UI_LAYER, canvas);
+                layers.Add(MESSAGE_BOX_UI_LAYER, canvas = CreateCanvas(MESSAGE_BOX_UI_LAYER));
             }
-            messageBox.message = text;
-            messageBox.gameObject.SetParent(canvas.transform);
-            return messageBox;
+            currentMsgBox.Show(canvas.transform, "Tips", text, Entry, cancel == null ? null : Cancel);
+            return currentMsgBox;
+        }
+
+        void CheckWaitingShowMsgBox()
+        {
+            if (msgQueue.Count <= 0)
+            {
+                return;
+            }
+            MsgUnit msgUnit = msgQueue.Dequeue();
+            OnMsgBox(msgUnit.text, msgUnit.ok, msgUnit.cancel);
         }
 
         private Canvas CreateCanvas(int layer)
@@ -228,6 +320,11 @@ namespace GameFramework.Runtime.Game
             Canvas canvas = GameObject.Instantiate<Canvas>(Resources.Load<Canvas>("Camera/Canvas"));
             canvas.name = "Canvas";
             canvas.gameObject.SetParent(UICamera.transform);
+            CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = this.screenSize;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0;
             canvas.worldCamera = UICamera;
             canvas.sortingOrder = layer;
             return canvas;
@@ -235,11 +332,13 @@ namespace GameFramework.Runtime.Game
 
         public void ClearMessageBox()
         {
+            msgQueue.Clear();
             if (!layers.TryGetValue(MESSAGE_BOX_UI_LAYER, out Canvas canvas))
             {
                 return;
             }
             GameObject.DestroyImmediate(canvas.gameObject);
+            layers.Remove(MESSAGE_BOX_UI_LAYER);
         }
 
         public void ClearLoading()
@@ -249,6 +348,16 @@ namespace GameFramework.Runtime.Game
                 return;
             }
             GameObject.DestroyImmediate(canvas.gameObject);
+            layers.Remove(LOADING_UI_LAYER);
+        }
+
+        public void CloseWait()
+        {
+            if (awaiting == null)
+            {
+                return;
+            }
+            awaiting.Dispose();
         }
     }
 }

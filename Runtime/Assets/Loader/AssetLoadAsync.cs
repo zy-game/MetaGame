@@ -7,6 +7,7 @@ namespace GameFramework.Runtime.Assets
 {
     public class AssetLoadAsync : WaitFinished
     {
+        public string param;
         private const int MAXPOOLCOUNT = 100;//对象池最大数量
         private static Queue<AssetLoadAsync> pool = new Queue<AssetLoadAsync>();
         public float progress;

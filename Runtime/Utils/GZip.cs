@@ -16,6 +16,7 @@ public class GZip
     /// <returns></returns>
     public static byte[] zip(byte[] data, string password = "")
     {
+        ZipConstants.DefaultCodePage = System.Text.Encoding.UTF8.CodePage;
         using MemoryStream ms = new();
         using ZipOutputStream outputStream = new(ms);
         outputStream.SetLevel(6);
@@ -26,7 +27,7 @@ public class GZip
         outputStream.PutNextEntry(zipEntry);
         outputStream.Write(data, 0, data.Length);
         outputStream.CloseEntry();
-        outputStream.IsStreamOwner = false; ;
+        outputStream.IsStreamOwner = false; 
         outputStream.Close();
         byte[] press = ms.ToArray();       
         ms.Close();
@@ -52,6 +53,7 @@ public class GZip
     /// <returns></returns>
     public static byte[] unzip(byte[] press, string password = "")
     {
+        ZipConstants.DefaultCodePage = System.Text.Encoding.UTF8.CodePage;
         using ZipInputStream zipInputStream = new ZipInputStream(new MemoryStream(press));
         if (!string.IsNullOrEmpty(password))
             zipInputStream.Password = password;

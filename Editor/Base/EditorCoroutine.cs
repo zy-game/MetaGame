@@ -9,15 +9,26 @@ namespace GameEditor
         public int coustomId;
         private List<CorEntity> corList;
         private List<CorEntity> removeCorList;
+        private List<CorEntity> newAddCorList;
 
         public EditorCoroutine()
         {
             corList = new List<CorEntity>();
             removeCorList = new List<CorEntity>();
+            newAddCorList=new List<CorEntity>();
         }
 
         public void Update()
         {
+            if (newAddCorList.Count > 0)
+            {
+                foreach (var v in newAddCorList)
+                {
+                    corList.Add(v);
+                }
+                newAddCorList.Clear();
+            }
+
             if (corList.Count == 0) return;
             foreach (var cor in corList)
             {
@@ -41,7 +52,7 @@ namespace GameEditor
         {
             coustomId++;
             CorEntity corEntity = new CorEntity(coustomId, enumerator);
-            corList.Add(corEntity);
+            newAddCorList.Add(corEntity);
             return coustomId;
         }
 
@@ -119,6 +130,21 @@ namespace GameEditor
         public bool IsDone()
         {
             return endTime<Time.realtimeSinceStartup;
+        }
+    }
+
+    public class WaitWebRequest : CoustomYield
+    {
+        private UnityEngine.Networking.UnityWebRequestAsyncOperation asyncOperation;
+
+        public WaitWebRequest(UnityEngine.Networking.UnityWebRequestAsyncOperation asyncOperation)
+        {
+            this.asyncOperation = asyncOperation;
+        }
+
+        public bool IsDone()
+        {
+            return asyncOperation.isDone;
         }
     }
 }

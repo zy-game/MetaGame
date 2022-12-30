@@ -1,5 +1,7 @@
 ﻿using System;
 using UnityEngine;
+using XLua;
+
 namespace GameFramework
 {
     /// <summary>
@@ -114,18 +116,43 @@ namespace GameFramework
         /// 克隆对象
         /// </summary>
         /// <param name="name"></param>
-        void Instantiate(string name);
+        GameObject Instantiate(string name);
 
         /// <summary>
         /// 克隆对象
         /// </summary>
         /// <param name="name"></param>
-        void Instantiate(string name, GameFrameworkAction<GameObject> OnClick);
-        
+        GameObject Instantiate(string name, GameFrameworkAction<GameObject> OnClick);
+
         /// <summary>
         /// 清理克隆物体
         /// </summary>
         /// <param name="isCache"></param>
         void ClearClone(string name, bool isCache = true);
+
+        /// <summary>
+        /// 清理克隆物体
+        /// </summary>
+        /// <param name="isCache"></param>
+        void ClearClone(bool isCache = true);
+        
+        /// <summary>
+        /// 加载子级UI
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="path"></param>
+        /// <param name="childName"></param>
+        /// <returns></returns>
+        GameObject GenerateSubUIHandler(string parentName, string path, string uiName);
+
+        /// <summary>
+        /// 加载子级UI
+        /// </summary>
+        /// <param name="parentName"></param>
+        /// <param name="path"></param>
+        /// <param name="uiName"></param>
+        /// <param name="luaScript"></param>
+        /// <returns></returns>
+        GameObject GenerateSubUIHandler(string parentName, string path, string uiName, LuaTable luaScript);
     }
 }

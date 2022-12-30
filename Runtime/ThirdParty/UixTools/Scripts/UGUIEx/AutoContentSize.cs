@@ -5,9 +5,19 @@ using UnityEngine.UI;
 public class AutoContentSize : ContentSizeFitter
 {
     public Vector2 startSize;
-    public Image image;
+    public RectTransform target; 
     public bool limit= false;
-    public Vector2 limitSize = Vector2.one * 100; 
+    public Vector2 limitSize = Vector2.one * 100;
+     
+    private RectTransform mRt;
+    private RectTransform Rt 
+    {
+        get
+        {
+            if (!mRt) mRt = GetComponent<RectTransform>();
+            return mRt;
+        }
+    }
 
     protected override void OnRectTransformDimensionsChange()
     {
@@ -17,12 +27,12 @@ public class AutoContentSize : ContentSizeFitter
 
     public void SetImageSize()
     {
-        if (image == null)
+        if (!target)
             return;
 
-        Vector2 size = startSize + GetComponent<RectTransform>().sizeDelta;
+        Vector2 size = startSize + Rt.sizeDelta;
 
-        image.GetComponent<RectTransform>().sizeDelta = size;
+        target.sizeDelta = size;
         if (!limit)
             return;
         SetLimit(size);
@@ -39,8 +49,7 @@ public class AutoContentSize : ContentSizeFitter
                 {
                     horizontalFit = FitMode.Unconstrained;
                     OnRectTransformDimensionsChange();
-                    GetComponent<RectTransform>().sizeDelta = new Vector2(limitSize.x,size.y);
-                    
+                    Rt.sizeDelta = new Vector2(limitSize.x,size.y);                    
                 }
 
             }

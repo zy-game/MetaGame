@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BehaviourGame
+namespace GameFramework.Runtime.Behaviour
 {
     public class BehaviourEntity
     {
@@ -23,7 +23,7 @@ namespace BehaviourGame
             stateManager.Update();
         }
 
-        public void AddState(StateHandle fsmState)
+        public void AddState(BehaviourHandle fsmState)
         {
             stateManager.AddState(fsmState);
         }
@@ -33,7 +33,7 @@ namespace BehaviourGame
             stateManager.RemoveState(stateName);
         }
 
-        public StateHandle GetState(string stateName)
+        public BehaviourHandle GetState(string stateName)
         {
             return stateManager.GetState(stateName);
         }

@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GlobalEvent: GlobalEvent<object>
+public class GlobalEvent : GlobalEvent<object>
 {
     public static void Notify(string key)
     {
@@ -15,7 +15,7 @@ public class GlobalEvent<T>
 {
     private static Dictionary<string, List<Action<T>>> map = new Dictionary<string, List<Action<T>>>();
 
-    public static void AddEvent(string key,Action<T> func)
+    public static void AddEvent(string key, Action<T> func)
     {
         if (string.IsNullOrEmpty(key))
         {
@@ -38,17 +38,31 @@ public class GlobalEvent<T>
             Debug.LogError("已添加对应的事件方法");
             return;
         }
-        list.Add(func);
+        list.Insert(0, func);
     }
 
-    public static void Notify(string key,T t)
+    public static void Notify(string key, T t)
     {
+        Debug.Log("notify global event:" + key);
         List<Action<T>> list = null;
-        if (!map.TryGetValue(key,out list))
+        if (!map.TryGetValue(key, out list))
             return;
-        foreach (var v in list)
+        for (int i = list.Count - 1; i >= 0; i--)
         {
-            v(t);
+            SafeRun(list[i], t);
+            //list[i](t);
+        }
+    }
+
+    private static void SafeRun(Action<T> ac, T val)
+    {
+        try
+        {
+            ac(val);
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
         }
     }
 
@@ -57,12 +71,13 @@ public class GlobalEvent<T>
         return map.Remove(key);
     }
 
-    public static bool Remove(string key,Action<T> func)
+    public static bool Remove(string key, Action<T> func)
     {
         List<Action<T>> list = null;
         if (!map.TryGetValue(key, out list))
             return false;
-        return list.Remove(func);
+        bool wall = list.Remove(func);
+        return wall;
     }
 
     public static void ClearAll()

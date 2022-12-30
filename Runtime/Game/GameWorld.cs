@@ -3,50 +3,139 @@ using System.Collections.Generic;
 using System;
 using XLua;
 using UnityEngine;
+using GameFramework.Runtime.Behaviour;
+using GameFramework.Runtime.Assets;
+using System.Collections;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace GameFramework.Runtime.Game
 {
     /// <summary>
     /// 游戏世界
     /// </summary>
-    public sealed class GameWorld : IWorld
+    public class GameWorld : IWorld
     {
+        public static Vector2 DefaultScreenSize = new Vector2(1080, 1920);
+        class LuaAdapter
+        {
+            private IWorld world;
+            private LuaTable table;
+            private LuaFunction start;
+            private LuaFunction dispose;
+            private LuaFunction setActive;
+            private LuaFunction fixedUpdate;
+            private LuaFunction update;
+            private LuaFunction lateUpdate;
+
+            public LuaAdapter(IWorld world, LuaTable table)
+            {
+                if (table == null)
+                {
+                    return;
+                }
+                this.table = table;
+                this.world = world;
+                start = table.Get<LuaFunction>("start");
+                dispose = table.Get<LuaFunction>("dispose");
+                setActive = table.Get<LuaFunction>("active");
+                fixedUpdate = table.Get<LuaFunction>("fixed");
+                update = table.Get<LuaFunction>("update");
+                lateUpdate = table.Get<LuaFunction>("late");
+            }
+
+            public void Start()
+            {
+                if (start == null)
+                {
+                    return;
+                }
+                start.Call(table, world);
+            }
+
+            public void Dispose()
+            {
+                if (dispose == null)
+                {
+                    return;
+                }
+                dispose.Call(table, world);
+                start?.Dispose();
+                setActive?.Dispose();
+                fixedUpdate?.Dispose();
+                lateUpdate?.Dispose();
+                update?.Dispose();
+                table?.Dispose();
+            }
+
+            public void ChangeState(bool state)
+            {
+                if (setActive == null)
+                {
+                    return;
+                }
+                setActive.Call(table, world, state);
+            }
+
+            public void FixedUpdate()
+            {
+                if (fixedUpdate == null)
+                {
+                    return;
+                }
+                fixedUpdate.Call(table, world);
+            }
+
+            public void Update()
+            {
+                if (update == null)
+                {
+                    return;
+                }
+                update.Call(table, world);
+            }
+
+            public void LateUpdate()
+            {
+                if (lateUpdate == null)
+                {
+                    return;
+                }
+                lateUpdate.Call(table, world);
+            }
+        }
 
         private bool active;
-        private LuaFunction dispose;
-        private LuaFunction setActive;
+        private string luaPath;
+        private LuaAdapter adapter;
         private List<IEntity> entitys;
         private List<Context> contexts;
-        private LuaFunction fixedUpdate;
-        private LuaFunction update;
-        private LuaFunction lateUpdate;
         private List<IScriptble> runnables;
+        private static string LastOpenWorldName = string.Empty;
         private static Dictionary<string, IWorld> worlds = new Dictionary<string, IWorld>();
+        private Vector2 _scrren;
+        public Vector2 screenSize
+        {
+            get
+            {
+                if (_scrren == Vector2.zero)
+                {
+                    _scrren = new Vector2(Screen.width, Screen.height);
+                }
+                return _scrren;
+            }
+        }
 
         /// <summary>
-        /// lua表
-        /// </summary>
-        /// <value></value>
-        public LuaTable table { get; }
-
-        /// <summary>
-        /// 天空盒
+        /// 天空�?
         /// </summary>
         /// <value></value>
         public ISkybox skybox
         {
             get;
+            private set;
         }
 
-        /// <summary>
-        /// 是否激活
-        /// </summary>
-        /// <value></value>
-        public bool activeSelf
-        {
-            get => active;
-            set => SetActive(value);
-        }
         /// <summary>
         /// 名称
         /// </summary>
@@ -54,24 +143,27 @@ namespace GameFramework.Runtime.Game
         public string name
         {
             get;
+            private set;
         }
 
         /// <summary>
-        /// UI管理器
+        /// UI管理�?
         /// </summary>
         /// <value></value>
         public IUIManager UIManager
         {
             get;
+            private set;
         }
 
         /// <summary>
-        /// 音效管理器
+        /// 音效管理�?
         /// </summary>
         /// <value></value>
         public IAudioManager AudioManager
         {
             get;
+            private set;
         }
 
         /// <summary>
@@ -84,86 +176,112 @@ namespace GameFramework.Runtime.Game
             private set;
         }
 
-        public Camera WorldCamera { get; }
-
-        public MapGrid Map { get; private set; }
-
-        public InputManager input { get; }
-
-
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        /// <param name="name"></param>
-        public GameWorld(string name) : this(name, null)
+        public Camera WorldCamera
         {
-
+            get;
+            private set;
         }
 
-        public GameWorld(string name, LuaTable table)
+        public MapGrid Map
         {
-            this.name = name;
-            input = new InputManager();
-            WorldCamera = GameObject.Instantiate<Camera>(Resources.Load<Camera>("Camera/Main Camera"));
-            WorldCamera.name = name + "_Camera";
-            WorldCamera.gameObject.SetParent(Utility.EmptyTransform, new Vector3(0, 5, 0), new Vector3(45, 0, 0));
+            get;
+            private set;
+        }
+
+        public InputManager input
+        {
+            get;
+            private set;
+        }
+
+        public BehaviourManager behaviour
+        {
+            get;
+            private set;
+        }
+
+        public GameWorld()
+        {
             this.entitys = new List<IEntity>();
             this.contexts = new List<Context>();
             this.runnables = new List<IScriptble>();
-            this.skybox = new CommonWorldSkybox(this);
-            this.UIManager = new UIManager(this);
-            this.AudioManager = new AudioManager(this);
-
-            this.activeSelf = true;
-            this.table = table;
-
-            if (table == null)
-            {
-                return;
-            }
-            dispose = table.Get<LuaFunction>("dispose");
-            setActive = table.Get<LuaFunction>("active");
-            fixedUpdate = table.Get<LuaFunction>("fixed");
-            update = table.Get<LuaFunction>("update");
-            lateUpdate = table.Get<LuaFunction>("late");
-            LuaFunction start = table.Get<LuaFunction>("start");
-            start.Call(table, this);
         }
+
+        private static T Generate<T>(string name, Vector2 screenSize, Camera worldCamera = null, string skyboxName = null) where T : GameWorld, new()
+        {
+            GameWorld world = new T();
+            world.name = name;
+
+            if (worldCamera == null)
+            {
+                worldCamera = GameObject.Instantiate<Camera>(Resources.Load<Camera>("Camera/Main Camera"));
+            }
+            world.WorldCamera = worldCamera;
+            world.WorldCamera.name = name + "_WorldCamera";
+            world.WorldCamera.gameObject.SetParent(StaticMethod.EmptyTransform, new Vector3(0, 2, -5), new Vector3(20, 0, 0));
+            world.input = InputManager.Generate(world);
+            world.behaviour = new BehaviourManager();
+            world.UIManager = new UIManager(world, screenSize);
+            world.AudioManager = new AudioManager(world);
+            world.Awake();
+            return (T)world;
+        }
+
         /// <summary>
         /// 创建世界
         /// </summary>
         /// <param name="name">世界名称</param>
         /// <returns></returns>
-        public static IWorld CreateWorld(string name)
+        public static IWorld CreateWorld(string name, Vector2 screenSize, Camera worldCamera = null, string skyboxName = null)
         {
-            if (worlds.TryGetValue(name, out IWorld world))
-            {
-                return world;
-            }
-            world = new GameWorld(name);
-            worlds.Add(name, world);
-            return world;
+            return CreateWorld<GameWorld>(name, screenSize, worldCamera, skyboxName);
         }
 
         /// <summary>
         /// 创建世界
         /// </summary>
-        /// <param name="table">世界名称</param>
+        /// <param name="name">世界名称</param>
         /// <returns></returns>
-        public static IWorld CreateWorld(LuaTable table)
+        public static T CreateWorld<T>(string name, Vector2 screenSize, Camera worldCamera = null, string skyboxName = null) where T : GameWorld, new()
         {
-            string name = table.Get<string>("name");
-            if (worlds.TryGetValue(name, out IWorld world))
+
+
+            if (!worlds.TryGetValue(name, out IWorld world))
             {
-                return world;
+                world = Generate<T>(name, screenSize, worldCamera, skyboxName);
+                worlds.Add(name, world);
             }
-            world = new GameWorld(name, table);
-            worlds.Add(name, world);
+
+            return (T)ReactiveWorld(world);
+        }
+
+
+        public static IWorld ReactiveWorld(string name)
+        {
+            IWorld world = GetWorld(name);
+            return ReactiveWorld(world);
+        }
+
+        public static IWorld ReactiveWorld(IWorld world)
+        {
+            if (world == null)
+            {
+                Debug.LogError(new NullReferenceException("world"));
+                return default;
+            }
+            if (current != null)
+            {
+                LastOpenWorldName = current.name;
+                current.SetActive(false);
+            }
+            Debug.Log("Reactive World:" + world.name);
+            current = world;
+            current.SetActive(true);
             return world;
         }
 
         /// <summary>
-        /// 获取指定的世界
+        /// 获取指定的世�?
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
@@ -175,9 +293,8 @@ namespace GameFramework.Runtime.Game
             }
             return default;
         }
-
         /// <summary>
-        /// 移除指定的世界
+        /// 移除指定的世�?
         /// </summary>
         /// <param name="name"></param>
         public static void RemoveWorld(string name)
@@ -189,51 +306,77 @@ namespace GameFramework.Runtime.Game
             }
         }
 
-        /// <summary>
-        /// 轮询
-        /// </summary>
-        public void FixedUpdate()
+
+
+        public virtual void Awake()
         {
-            if (!active)
-            {
-                return;
-            }
-            if (fixedUpdate != null)
-            {
-                fixedUpdate.Call(table, this);
-            }
-            skybox.FixedUpdate();
-            AudioManager.FixedUpdate();
+            StaticMethod.AddUpdateEvent(this.name, this.Update);
+            StaticMethod.AddLateUpdateEvent(this.name, this.LateUpdate);
+            StaticMethod.AddFixedUpdateEvent(this.name, this.FixedUpdate);
         }
 
-        public void Update()
+        public void LoadLuaMap(string luaPath)
+        {
+            string tableName = Path.GetFileNameWithoutExtension(luaPath);
+            object[] datas = LuaManager.Instance.DoString($"require '{luaPath}'");
+            LuaTable table = LuaManager.Instance.GetTable(tableName);
+            if (table == null)
+            {
+                Debug.Log("not find the lua file:" + tableName + "  " + luaPath);
+                return;
+            }
+            this.adapter = new LuaAdapter(this, table);
+            UIManager.ClearLoading();
+            adapter.Start();
+        }
+
+        public virtual void FixedUpdate()
         {
             if (!active)
             {
                 return;
             }
-            input.Update();
-            if (update != null)
+            if (adapter != null)
             {
-                update.Call(table, this);
+                adapter.FixedUpdate();
+            }
+
+            if (skybox != null)
+            {
+                skybox.FixedUpdate();
+            }
+
+            AudioManager.FixedUpdate();
+            this.behaviour.Update();
+        }
+
+        public virtual void Update()
+        {
+            if (!active)
+            {
+                return;
             }
             UpdateScript();
+            if (adapter != null)
+            {
+                adapter.Update();
+            }
         }
 
-        public void LateUpdate()
+        public virtual void LateUpdate()
         {
             if (!active)
             {
                 return;
             }
-            if (lateUpdate != null)
+            if (adapter != null)
             {
-                lateUpdate.Call(table, this);
+                adapter.LateUpdate();
             }
         }
 
         /// <summary>
-        /// 创建寻路器
+        /// 创建寻路�?
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -245,7 +388,7 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 创建一个游戏实体对象
+        /// 创建一�?游戏实体对象
         /// </summary>
         /// <returns></returns>
         public IEntity CreateEntity()
@@ -254,7 +397,7 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 创建一个游戏实体对象
+        /// 创建一�?游戏实体对象
         /// </summary>
         /// <param name="guid"></param>
         /// <returns></returns>
@@ -264,11 +407,11 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 创建一个游戏实体对象
+        /// 创建一�?游戏实体对象
         /// </summary>
         /// <param name="path">实体名称</param>
-        /// <param name="guid">实体唯一ID</param>
-        /// <param name="contextName">连接的实体资源</param>
+        /// <param name="guid">实体�?一ID</param>
+        /// <param name="contextName">连接的实体资�?</param>
         /// <returns></returns>
         public IEntity CreateEntity(string path, string guid)
         {
@@ -303,15 +446,15 @@ namespace GameFramework.Runtime.Game
         /// <summary>
         /// 释放当前世界
         /// </summary>
-        public void Dispose()
+        public virtual void Dispose()
         {
-            if (dispose != null)
-            {
-                dispose.Call(table, this);
-            }
-            UIManager.Dispose();
-            AudioManager.Dispose();
-            skybox.Dispose();
+            StaticMethod.RemoveEvent(this.name);
+            adapter?.Dispose();
+            input?.Dispose();
+            UIManager?.Dispose();
+            AudioManager?.Dispose();
+            if (skybox != null)
+                skybox.Dispose();
             if (current == this)
             {
                 current = null;
@@ -326,14 +469,11 @@ namespace GameFramework.Runtime.Game
                 item.Dispose();
             }
             runnables.Clear();
-            dispose = null;
-            fixedUpdate = null;
-            setActive = null;
-            table.Dispose();
+            GameObject.DestroyImmediate(WorldCamera.gameObject);
         }
 
         /// <summary>
-        /// 获取所有实体对象
+        /// 获取所有实体�?�象
         /// </summary>
         /// <returns></returns>
         public List<IEntity> GetEntitys()
@@ -342,7 +482,7 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 获取所有实体对象
+        /// 获取所有实体�?�象
         /// </summary>
         /// <returns></returns>
         public Context[] GetEntitys(int tags)
@@ -363,9 +503,9 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 获取指定的实体对象
+        /// 获取指定的实体�?�象
         /// </summary>
-        /// <param name="guid">实体唯一ID</param>
+        /// <param name="guid">实体�?一ID</param>
         /// <returns></returns>
         public IEntity GetEntity(string guid)
         {
@@ -384,7 +524,7 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 是否存在实体对象
+        /// �?否存在实体�?�象
         /// </summary>
         /// <param name="guid"></param>
         /// <returns></returns>
@@ -412,29 +552,26 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 设置可见性
+        /// 设置�?见�?
         /// </summary>
         /// <param name="active"></param>
-        public void SetActive(bool active)
+        public virtual void SetActive(bool active)
         {
             this.active = active;
             UIManager.SetActive(active);
             AudioManager.SetActive(active);
-            skybox.SetActive(active);
-            if (setActive != null)
+            input.gameObject.SetActive(active);
+            if (skybox != null)
             {
-                setActive.Call(table, this);
+                skybox.SetActive(active);
             }
-            if (!active)
+
+            if (adapter != null)
             {
-                return;
+                adapter.ChangeState(active);
             }
-            if (current != null && current != this)
-            {
-                current.SetActive(false);
-                current = null;
-            }
-            current = this;
+
+            WorldCamera.gameObject.SetActive(active);
         }
 
         private void UpdateScript()
@@ -443,6 +580,116 @@ namespace GameFramework.Runtime.Game
             {
                 runnables[i].Executed(this);
             }
+        }
+
+        public void ClearEntitys()
+        {
+            for (var i = 0; i < entitys.Count; i++)
+            {
+                entitys[i].Dispose();
+            }
+            entitys.Clear();
+            contexts.ForEach(x => x.Clear());
+        }
+        public IUIHandler OpenUI(string path, string name, LuaTable table)
+        {
+            if (UIManager == null)
+            {
+                return null;
+            }
+            return UIManager.OpenUI(path, name, table);
+        }
+        public IUIHandler OpenUI(string name, LuaTable table)
+        {
+            if (UIManager == null)
+            {
+                return null;
+            }
+            return UIManager.OpenUI(name, table);
+        }
+
+        public IUIHandler OpenUI(string name)
+        {
+            if (UIManager == null)
+            {
+                return null;
+            }
+            return UIManager.OpenUI(name);
+        }
+
+        public IUIHandler GetUIHandler(string name)
+        {
+            if (UIManager == null)
+            {
+                return null;
+            }
+            return UIManager.GetUIHandler(name);
+        }
+
+        public void CloseUI(string name, bool isCache = false)
+        {
+            if (UIManager == null)
+            {
+                return;
+            }
+            UIManager.CloseUI(name, isCache);
+        }
+
+        public void ClearUI()
+        {
+            if (UIManager == null)
+            {
+                return;
+            }
+            UIManager.Clear();
+        }
+
+  
+
+        public IMessageBox OnMsgBox(string message, GameFrameworkAction ok = null, GameFrameworkAction cancel = null)
+        {
+            if (UIManager == null)
+            {
+                return null;
+            }
+            return UIManager.OnMsgBox(message, ok, cancel);
+        }
+
+        public ILoading ShowLoading(string info)
+        {
+            if (UIManager == null)
+            {
+                return null;
+            }
+            var loading = UIManager.OnLoading();
+            loading.text = info;
+            return loading;
+        }
+
+        public IAwaiting OnWait()
+        {
+            return UIManager.OnAwaitLoading();
+        }
+
+        public void CloseWait()
+        {
+            UIManager.CloseWait();
+        }
+
+        public void CloseMsgBox()
+        {
+            UIManager.ClearMessageBox();
+        }
+
+        public void CloseLoading()
+        {
+            UIManager.ClearLoading();
+        }
+
+        public void LoadSkybox(string path, string skyboxName)
+        {
+            skybox = new CommonWorldSkybox(this);
+            skybox.Initialize(0.1f, 0.05f, path, skyboxName);
         }
     }
 }

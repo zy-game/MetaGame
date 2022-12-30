@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -30,19 +31,18 @@ namespace GameFramework.Runtime.Game
         public string guid { get; }
 
         /// <summary>
-        /// Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç?
+        /// ?????
         /// </summary>
         /// <value></value>
         public int tag { get; private set; }
+
+
 
         /// <summary>
         /// owner form world
         /// </summary>
         /// <value></value>
         public IWorld world { get; private set; }
-
-        public string path { get; }
-
 
         /// <summary>
         /// ctor
@@ -51,8 +51,7 @@ namespace GameFramework.Runtime.Game
         /// <param name="guid"></param>
         public GameEntity(IWorld world, string name, string guid)
         {
-            this.name = Path.GetFileName(name);
-            this.path = name;
+            this.name = name;
             this.guid = guid;
             this.world = world;
         }
@@ -164,6 +163,7 @@ namespace GameFramework.Runtime.Game
             LuaComponentAdapter adapter = (LuaComponentAdapter)GetComponent(tag);
             if (adapter == null)
             {
+                Debug.Log("entity not find component:" + tag);
                 return default;
             }
             return adapter.table;
@@ -200,5 +200,10 @@ namespace GameFramework.Runtime.Game
             }
             return result;
         }
+    }
+
+    public sealed class EntityBinding : MonoBehaviour
+    {
+        public IEntity entity;
     }
 }

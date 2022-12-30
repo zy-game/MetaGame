@@ -10,19 +10,30 @@ namespace GameEditor.BuildAsset
 {
     public class AssetBundleBuildSetting : BaseEditorWindow
     {
+
         public enum Page
         {
             Main,
             EditorAsset,
             EditorModule,
             LocalAsset,
+            UploadAsset,
+            UploadCode,
+            AssetLink,
+            LuaPackage,
         }
 
         public static void Open(BuildAssetConfig assetConfig)
         {
-            var window = Open<AssetBundleBuildSetting>(500, 600, "资源打包");
+            var window = Open<AssetBundleBuildSetting>(500, 650, "资源打包");
             window.assetConfig = assetConfig;
-            window.Start();
+            window.ChangePage(Page.Main);
+        }
+
+        public static void Open()
+        {
+            var window = Open<AssetBundleBuildSetting>(500, 650, "资源管理");
+            window.ChangePage(Page.AssetLink);
         }
 
         public BuildAssetConfig assetConfig;
@@ -34,24 +45,19 @@ namespace GameEditor.BuildAsset
             pageMap = new Dictionary<Page, BuildAssetPage>();
             LoadLocalConfig();
         }
-         
+
         private void LoadLocalConfig()
         {
             string path = AppConst.AppConfigPath;
             if (!File.Exists(path))
                 AppConst.config = new LocalCommonConfig();
             else
-                AppConst.config = JsonObject.Deserialize<LocalCommonConfig>(File.ReadAllText(path));
-        }
-
-        private void Start()
-        {
-            ChangePage(Page.Main);
+                AppConst.config = LocalCommonConfig.Get();
         }
 
         public void ChangePage(Page page, object param = null)
         {
-            BuildAssetPage buildAssetPage = null;
+            BuildAssetPage buildAssetPage;
             if (!pageMap.TryGetValue(page, out buildAssetPage))
             {
                 switch (page)
@@ -68,6 +74,18 @@ namespace GameEditor.BuildAsset
                     case Page.LocalAsset:
                         buildAssetPage = new PageLocalAssetsManager(this, page);
                         break;
+                    case Page.UploadAsset:
+                        buildAssetPage = new AssetUploadPage(this, page);
+                        break;
+                    case Page.UploadCode:
+                        buildAssetPage = new CodeUploadPage(this, page);
+                        break;
+                    case Page.AssetLink:
+                        buildAssetPage = new AssetLinkEditor(this, page);
+                        break;
+                    case Page.LuaPackage:
+                        buildAssetPage = new LuaPackageEditor(this, page);
+                        break;
                 }
                 if (buildAssetPage == null) return;
                 pageMap.Add(page, buildAssetPage);
@@ -75,6 +93,11 @@ namespace GameEditor.BuildAsset
             if (curPage != null) curPage.Exit();
             curPage = buildAssetPage;
             curPage.Enter(param);
+        }
+
+        public void RemovePage(Page page)
+        {
+            pageMap.Remove(page);
         }
 
         private void OnGUI()
@@ -86,8 +109,8 @@ namespace GameEditor.BuildAsset
 
         public void Save()
         {
-            AssetDatabase.SaveAssetIfDirty(assetConfig);
             EditorUtility.SetDirty(assetConfig);
+            AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
 
@@ -110,6 +133,7 @@ namespace GameEditor.BuildAsset
                 return "None";
             }
         }
+
     }
 
     public class GeneratedFileList : BaseEditorWindow
@@ -133,53 +157,7 @@ namespace GameEditor.BuildAsset
 
         private void Generated()
         {
-            GenerateFileList(path, 1);
-        }
-
-        //生成文件列表
-        private void GenerateFileList(string path, int version)
-        {
-            path = NormalizePath(path);
-            if (!path.EndsWith("/"))
-                path += "/";
-            string fileListPath = path + "files.txt";
-            if (File.Exists(fileListPath))
-                File.Delete(fileListPath);
-            AssetFileEntity fileEntity = new AssetFileEntity();
-            fileEntity.files = new List<AssetFileEntity.FileItem>();
-            string[] files = GetFiles(path);
-            foreach (var file in files)
-            {
-                string name = NormalizePath(file).Replace(path, "");
-                string md5 = Util.md5file(file);
-                int size = (int)new FileInfo(file).Length;
-                var item = new AssetFileEntity.FileItem();
-                item.name = name;
-                item.md5 = md5;
-                item.size = size;
-                fileEntity.files.Add(item);
-            }
-            fileEntity.version = version;
-            fileEntity.moduleName = new DirectoryInfo(path).Name;
-            File.WriteAllText(fileListPath, JsonObject.Serialize(fileEntity));
-            Debug.Log("生成完成:" + fileListPath);
-        }
-
-        private string[] GetFiles(string path)
-        {
-            string[] files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-            List<string> list = new List<string>();
-            foreach (var file in files)
-            {
-                list.Add(file);
-            }
-            return list.ToArray();
-        }
-
-        //统一路径格式
-        private string NormalizePath(string path)
-        {
-            return path.Replace(@"\", "/");
+            AssetManager.GenerateFileList(path, 1, new DirectoryInfo(path).Name.ToLower());
         }
     }
 }

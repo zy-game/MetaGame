@@ -22,16 +22,15 @@ namespace GameFramework
         string name { get; }
 
         /// <summary>
+        /// 当前视图大小
+        /// </summary>
+        Vector2 screenSize { get; }
+
+        /// <summary>
         /// 当前世界的天空盒
         /// </summary>
         /// <value></value>
         ISkybox skybox { get; }
-
-        /// <summary>
-        /// 是否激活
-        /// </summary>
-        /// <value></value>
-        bool activeSelf { get; }
 
         /// <summary>
         /// 世界主相机
@@ -63,7 +62,19 @@ namespace GameFramework
         /// <value></value>
         InputManager input { get; }
 
-
+        void LoadLuaMap(string luaPath);
+        void LoadSkybox(string path,string skyboxName);
+        IUIHandler OpenUI(string name, LuaTable table);
+        IUIHandler OpenUI(string path, string name, LuaTable table);
+        IUIHandler OpenUI(string name);
+        IUIHandler GetUIHandler(string name);
+        void CloseUI(string name, bool isCache = false);
+        IMessageBox OnMsgBox(string message, GameFrameworkAction ok = null, GameFrameworkAction cancel = null);
+        ILoading ShowLoading(string info);
+        IAwaiting OnWait();
+        void CloseWait();
+        void CloseMsgBox();
+        void CloseLoading();
         void CreateMapPath(float gridSize, int gridCount, List<bool> walls);
 
         /// <summary>

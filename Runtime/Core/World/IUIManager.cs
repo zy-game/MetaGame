@@ -1,6 +1,7 @@
 ﻿using GameFramework.Runtime.Assets;
 using UnityEngine;
 using UnityEngine.UI;
+using XLua;
 
 namespace GameFramework
 {
@@ -26,6 +27,10 @@ namespace GameFramework
         /// </summary>
         /// <param name="name"></param>
         IUIHandler OpenUI(string name);
+
+        IUIHandler OpenUI(string path, string name, LuaTable table);
+
+        IUIHandler OpenUI(string name, LuaTable table);
 
         /// <summary>
         /// 关闭UI
@@ -64,12 +69,14 @@ namespace GameFramework
         /// </summary>
         /// <returns></returns>
         ILoading OnLoading();
-        
+
         /// <summary>
         /// 显示等待
         /// </summary>
         /// <returns></returns>
         IAwaiting OnAwaitLoading();
+
+        void CloseWait();
 
         /// <summary>
         /// 显示一个提示窗口
@@ -98,11 +105,7 @@ namespace GameFramework
 
     public interface IMessageBox : GObject
     {
-        string tilet { get; set; }
-        string message { get; set; }
-        GameObject gameObject { get; }
-        event GameFrameworkAction cancel;
-        event GameFrameworkAction entry;
+        void Show(Transform parent, string tilet, string message, GameFrameworkAction ok, GameFrameworkAction cancel);
     }
 
     public interface ILoading : GObject
@@ -110,8 +113,10 @@ namespace GameFramework
         string text { get; set; }
         string version { get; set; }
         GameObject gameObject { get; }
+
+        void SetLoadingBackground(string textureName);
     }
-    
+
     public interface IAwaiting : GObject
     {
         GameObject gameObject { get; }

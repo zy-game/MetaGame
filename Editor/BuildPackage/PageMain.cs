@@ -58,16 +58,18 @@ namespace GameEditor.BuildAsset
             GUILayout.Space(5);
             GUILayout.BeginHorizontal();
 
-            if (GUILayout.Button("打包路径", GUILayout.Height(25)))
+            if (GUILayout.Button("新建", GUILayout.Height(25))) CreatorModule();
+            if (GUILayout.Button("打包", GUILayout.Height(25))) isBuild = true;
+            //if (GUILayout.Button("上传", GUILayout.Height(25))) LocalAsset();
+            if (GUILayout.Button("上传代码", GUILayout.Height(25)))
             {
-                OpenDirectory(buildSetting.assetConfig.buildRootPath + BuildAssetConfig.buildTempPath);
+                buildSetting.ChangePage(AssetBundleBuildSetting.Page.UploadCode);
             }
             if (GUILayout.Button("缓存路径", GUILayout.Height(25)))
             {
-                OpenDirectory(buildSetting.assetConfig.buildRootPath + BuildAssetConfig.buildCachePath);
-            }
-            if (GUILayout.Button("新建模块", GUILayout.Height(25))) CreatorModule();
-            if (GUILayout.Button("打包所选项", GUILayout.Height(25))) isBuild = true;
+                // OpenDirectory(BuildAssetConfig.buildRootPath + BuildAssetConfig.buildTempPath);
+                OpenDirectory(BuildAssetConfig.buildRootPath + BuildAssetConfig.buildCachePath);
+            }           
             if (GUILayout.Button("本地资源", GUILayout.Height(25))) LocalAsset();
 
             GUILayout.Label(string.Format("已选择{0}个", curSelectCount), GUILayout.Width(65), GUILayout.Height(25));
@@ -140,10 +142,11 @@ namespace GameEditor.BuildAsset
             if (item.isSelect) curSelectCount++;
             GUILayout.Label((item.index + 1) + ". " + item.assetData.alias, GUILayout.Width(120));
             GUILayout.Label("模块名: " + item.assetData.moduleName);
-            if (GUILayout.Button("Editor", GUILayout.Width(75))) EditorAssetData(item);
+            if (GUILayout.Button("上传", GUILayout.Width(50))) UploadAsset(item);
+            if (GUILayout.Button("编辑", GUILayout.Width(50))) EditorAssetData(item);
             if (item.assetData.assetType == AssetType.Module)
             {
-                if (GUILayout.Button("Del", GUILayout.Width(45))) DeleteAssetData(item);
+                if (GUILayout.Button("删除", GUILayout.Width(50))) DeleteAssetData(item);
             }
             GUILayout.EndHorizontal();
         }
@@ -170,6 +173,11 @@ namespace GameEditor.BuildAsset
                 buildSetting.Save();
                 AssetDatabase.Refresh();
             }
+        }
+
+        private void UploadAsset(Item item)
+        {
+            buildSetting.ChangePage(AssetBundleBuildSetting.Page.UploadAsset, item.assetData.moduleName);
         }
 
     }

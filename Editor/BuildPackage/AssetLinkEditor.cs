@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace GameEditor.BuildAsset
 {
-    public class AssetLinkEditor : BaseEditorWindow
+    public class AssetLinkEditor : BuildAssetPage
     {
         private class Item
         {
@@ -19,12 +19,8 @@ namespace GameEditor.BuildAsset
             public List<string> dependList;
         }
 
-        public static void Open()
-        {
-            Open<AssetLinkEditor>(500, 600, "资源包引用");
-        }
+      
 
-        protected SelfGUIStyle selfGUIStyle;
         private List<Item> items;
         private Vector2 scrollPos;
         private bool isLinkDepondAsset = true;
@@ -34,23 +30,25 @@ namespace GameEditor.BuildAsset
 
         private string assetProjectPath;
 
-        protected override void Init()
+        public AssetLinkEditor(AssetBundleBuildSetting buildSetting, AssetBundleBuildSetting.Page page) : base(buildSetting, page)
         {
-            selfGUIStyle = new SelfGUIStyle();
-            assetProjectPath = ReadAssetProjectPath();
+            assetProjectPath =AssetManager.GetAssetProjectPath();
             Start();
         }
 
-        private string ReadAssetProjectPath()
+        public override void Enter(object param)
         {
-            string path = "./Assets/ArtistRes/assetProjectConfig.la";
-            if (!File.Exists(path)) return string.Empty;
-            return File.ReadAllText(path);
+          
+        }
+
+        public override void Exit()
+        {
+           
         }
 
         private void WriteAssetProjectPath(string assetProjectPath)
         {
-            string path = "./Assets/ArtistRes/assetProjectConfig.la";
+            string path = "./" + AssetDirConfig.assetRootPath + "/"+ AssetDirConfig.assetProjectPathConfig;
             File.WriteAllText(path, assetProjectPath);
             AssetDatabase.Refresh();
         }
@@ -65,7 +63,7 @@ namespace GameEditor.BuildAsset
             }
             isSetConfigLink = false;
 
-            string[] dirs = Directory.GetDirectories("./Assets/ArtistRes");
+            string[] dirs = Directory.GetDirectories("./"+AssetDirConfig.assetRootPath);
             foreach (var dir in dirs)
             {
                 foreach (Item item in items)
@@ -101,10 +99,7 @@ namespace GameEditor.BuildAsset
 
         private void Execute(string command)
         {
-            Debug.Log(command);
-
             command = command.Trim().TrimEnd('&') + "&exit";
-
             System.Diagnostics.Process process = new System.Diagnostics.Process();
             process.StartInfo.FileName = "cmd.exe";
             process.StartInfo.Arguments = "/c" + command;
@@ -119,10 +114,9 @@ namespace GameEditor.BuildAsset
             process.Close();
             AssetDatabase.Refresh();
 
-
         }
 
-        private void OnGUI()
+        public override void Run()
         {
             if (isSetConfigLink)
             {
@@ -140,13 +134,20 @@ namespace GameEditor.BuildAsset
             GUILayout.Label("关联依赖资源包:", GUILayout.Width(90));
             isLinkDepondAsset = EditorGUILayout.Toggle(isLinkDepondAsset, GUILayout.Width(15));
             if (GUILayout.Button("引用", GUILayout.Width(75))) LinkSelect();
+            if (GUILayout.Button("Lua包管理", GUILayout.Width(100))) 
+            {
+                LuaPackageLink();
+                buildSetting.ChangePage(AssetBundleBuildSetting.Page.LuaPackage);
+                //LuaPackageEditor.Open();
+                //Close();
+            }
             GUILayout.EndHorizontal();
-            GUILayout.Box("", selfGUIStyle.line, GUILayout.Width(position.width), GUILayout.Height(5));
+            GUILayout.Box("", selfGUIStyle.line, GUILayout.Width(buildSetting.position.width), GUILayout.Height(5));
         }
 
         private void LinkSelect()
         {
-            string[] dirs = Directory.GetDirectories("./Assets/ArtistRes");
+            string[] dirs = Directory.GetDirectories("./"+ AssetDirConfig.assetRootPath);
             List<string> delDirList = new List<string>();
             foreach (var dir in dirs)
             {
@@ -164,7 +165,7 @@ namespace GameEditor.BuildAsset
             {
                 if (!item.isSelect) continue;
 
-                string scrPath = assetProjectPath + "ArtistRes/" + item.name;
+                string scrPath = assetProjectPath + AssetDirConfig.assetDirName+ "/" + item.name;
                 if (!Directory.Exists(scrPath))
                 {
                     Debug.LogError("路径不存在:" + scrPath);
@@ -172,14 +173,14 @@ namespace GameEditor.BuildAsset
                 }
 
                 delDirList.Remove(item.name);
-                string destPath = new DirectoryInfo("./Assets/" + "ArtistRes/" + item.name).FullName;
+                string destPath = new DirectoryInfo("./Assets/" + AssetDirConfig.assetDirName + "/" + item.name).FullName;
                 if (Directory.Exists(destPath)) continue;
                 Execute(string.Format("mklink /j {0} {1}", destPath, scrPath.Replace("/", @"\")));
             }
 
             foreach (var v in delDirList)
             {
-                string path = "./Assets/ArtistRes/" + v;
+                string path = "./"+ AssetDirConfig.assetRootPath + v;
                 Execute("rmdir " + new DirectoryInfo(path).FullName);
                 string metaPath = path + ".meta";
                 if (File.Exists(metaPath))
@@ -187,7 +188,7 @@ namespace GameEditor.BuildAsset
             }
 
             AssetDatabase.Refresh();
-            Close();
+            buildSetting.Close();
 
 
         }
@@ -249,7 +250,7 @@ namespace GameEditor.BuildAsset
                 return false;
             }
 
-            path = path + "ArtistRes/assetBuildConfig";
+            path = path +AssetDirConfig.configDirProjectPath;
             DirectoryInfo di = new DirectoryInfo(path);
             path = di.FullName;
 
@@ -275,7 +276,7 @@ namespace GameEditor.BuildAsset
                 }
             }
 
-            string buildAssetConfigPath = path + "/" + AssetManager.configName;
+            string buildAssetConfigPath = path  + AssetDirConfig.configName;
             if (!File.Exists(buildAssetConfigPath))
             {
                 Debug.LogError("配置文件不存在:" + buildAssetConfigPath);
@@ -318,7 +319,7 @@ namespace GameEditor.BuildAsset
                 string name = string.Empty;
                 if (!guidToNameMap.TryGetValue(guid, out name))
                     continue;
-                string file = path + "/" + name + ".asset";
+                string file = path  + name + ".asset";
                 string[] denpendsGuid = GetDepondGUID(file);
                 List<string> dependName = new List<string>();
                 foreach (var dpGuid in denpendsGuid)
@@ -483,6 +484,22 @@ namespace GameEditor.BuildAsset
             if (Directory.Exists(destPath))
                 Directory.Delete(destPath, true); 
             Execute(string.Format("mklink /j {0} {1}", destPath, scrPath));
+        }
+
+        private void LuaPackageLink()
+        {
+           string lauPackageDirPath = assetProjectPath + AssetDirConfig.configDirProjectPath + AssetDirConfig.luaDir + "/";
+            if (!Directory.Exists(lauPackageDirPath))
+                Directory.CreateDirectory(lauPackageDirPath);
+            string destPath = new DirectoryInfo("./" + AssetDirConfig.assetRootPath).FullName;
+            if (!Directory.Exists(destPath))
+                Directory.CreateDirectory(destPath);
+            destPath += AssetDirConfig.luaDir + @"\";
+            if (!Directory.Exists(destPath))
+            {
+                Execute(string.Format("mklink /j {0} {1}", destPath, lauPackageDirPath.Replace("/", @"\")));
+            }
+
         }
     }
 }

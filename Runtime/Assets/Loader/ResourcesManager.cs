@@ -19,7 +19,7 @@ namespace GameFramework.Runtime.Assets
             {
 #if UNITY_EDITOR
 
-                assetLoad = new EditorAssetLoad();
+                assetLoad = new GameFramework.Editor.Assets.EditorAssetLoad();
 #else
                 assetLoad = new RuntimeAssetLoad();
 #endif
@@ -99,12 +99,32 @@ namespace GameFramework.Runtime.Assets
             };
         }
 
-        //public T LoadAsset<T>(string path, GameObject bindGameObject = null, string assetName = "") where T : Object
-        //{
-        //    AssetHandle handle = Load(path);
-        //    if (handle == null) return null;
-        //    handle.LoadAsset
-        //}
+        public T LoadAsset<T>(string path, GameObject bindGameObject = null, string assetName = "") where T : Object
+        {
+            AssetHandle handle = Load(path);
+            if (handle == null) return null;
+            T t = handle.LoadAsset<T>(assetName);
+            if (t && bindGameObject)
+                SetAssetBundleBehaviour(bindGameObject, handle);
+            return t;
+        }
+
+        public AssetHandleAsync<T> LoadAssetAsync<T>(string path, GameObject bindGameObject = null, string assetName = "") where T : Object
+        {
+            AssetLoadAsync loadAsync = LoadAsync(path);
+            if (loadAsync == null) return null;
+            AssetHandleAsync<T> handleAsync = AssetHandleAsync<T>.Get();
+            loadAsync.callback = (handle) =>
+            {
+                handle.LoadAssetAsync<T>(assetName).callback = (obj) =>
+                {
+                    if (obj && bindGameObject)
+                        SetAssetBundleBehaviour(bindGameObject, handle);
+                    handleAsync.callback(obj);
+                };
+            };
+            return handleAsync;
+        }
 
         public void SetAssetBundleBehaviour(GameObject go, AssetHandle assetHandle)
         {

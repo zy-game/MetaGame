@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using UnityEngine;
 using XLua;
@@ -37,6 +38,7 @@ namespace GameFramework.Runtime.Game
                 {
                     return;
                 }
+                this.table = table;
                 this.handler = handler;
                 this.layer = table.Get<int>("layer");
                 _start = table.Get<LuaFunction>("start");
@@ -131,8 +133,8 @@ namespace GameFramework.Runtime.Game
 
         private Dictionary<string, RectTransform> childs;
 
-        private Dictionary<string, List<RectTransform>> clones;
-        private Dictionary<string, Queue<RectTransform>> cloneCaches;
+        private Dictionary<string, List<RectTransform>> clones = new Dictionary<string, List<RectTransform>>();
+        private Dictionary<string, Queue<RectTransform>> cloneCaches = new Dictionary<string, Queue<RectTransform>>();
 
         /// <summary>
         /// UI管道
@@ -149,7 +151,7 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 释放UI管理器
+        /// 释放UI管理�?
         /// </summary>
         public void Dispose()
         {
@@ -177,88 +179,206 @@ namespace GameFramework.Runtime.Game
         }
 
         /// <summary>
-        /// 初始化
+        /// 初�?�化
         /// </summary>
         public void Start()
         {
             childs = new Dictionary<string, RectTransform>();
-            clones = new Dictionary<string, List<RectTransform>>();
-            cloneCaches = new Dictionary<string, Queue<RectTransform>>();
-            RectTransform[] transforms = this.gameObject.transform.GetComponentsInChildren<RectTransform>(true);
-            for (int i = 0; i < transforms.Length; i++)
-            {
-                childs.Add(transforms[i].name, transforms[i]);
-            }
-
-            UnityEngine.UI.Button[] buttons = this.gameObject.transform.GetComponentsInChildren<UnityEngine.UI.Button>(true);
-            foreach (var item in buttons)
-            {
-                GameObject eventObject = item.gameObject;
-                item.onClick.AddListener(() =>
-                {
-                    OnNotify(item.gameObject.name, eventObject, null);
-                });
-            }
-
-            UnityEngine.UI.InputField[] inputs = this.gameObject.transform.GetComponentsInChildren<UnityEngine.UI.InputField>(true);
-            foreach (var item in inputs)
-            {
-                GameObject eventObject = item.gameObject;
-                item.onEndEdit.AddListener((args) =>
-                {
-                    OnNotify(item.gameObject.name, eventObject, args);
-                });
-            }
+            InitUnityEvent(this.gameObject);
             adapter.Start();
         }
+
+        private void InitUnityEvent(GameObject gameObject)
+        {
+            RectTransform[] transforms = gameObject.transform.GetComponentsInChildren<RectTransform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                if (childs.ContainsKey(transforms[i].name))
+                {
+                    continue;
+                }
+                childs.Add(transforms[i].name, transforms[i]);
+            }
+            UnityEngine.UI.Button[] buttons = gameObject.transform.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                GameObject eventObject = buttons[i].gameObject;
+                buttons[i].onClick.AddListener(() =>
+                {
+                    OnNotify(eventObject.name, eventObject, null);
+                });
+            }
+
+            UnityEngine.UI.InputField[] inputs = gameObject.transform.GetComponentsInChildren<UnityEngine.UI.InputField>(true);
+            for (var i = 0; i < inputs.Length; i++)
+            {
+                GameObject eventObject = inputs[i].gameObject;
+                inputs[i].onSubmit.AddListener((args) =>
+                {
+                    OnNotify(eventObject.name, eventObject, args);
+                });
+            }
+
+            TMPro.TMP_InputField[] tmp_input = gameObject.transform.GetComponentsInChildren<TMPro.TMP_InputField>(true);
+            for (var i = 0; i < tmp_input.Length; i++)
+            {
+                GameObject eventObject = tmp_input[i].gameObject;
+                tmp_input[i].onEndEdit.AddListener((args) =>
+                {
+                    OnNotify(eventObject.name, eventObject, args);
+                });
+            }
+
+            UnityEngine.UI.Toggle[] toggles = gameObject.transform.GetComponentsInChildren<UnityEngine.UI.Toggle>(true);
+            for (var i = 0; i < toggles.Length; i++)
+            {
+                GameObject eventObject = toggles[i].gameObject;
+                toggles[i].onValueChanged.AddListener((args) =>
+                {
+                    if (!args)
+                    {
+                        return;
+                    }
+                    OnNotify(eventObject.name, eventObject, args);
+                });
+            }
+
+            UnityEngine.UI.Dropdown[] dropdowns = gameObject.transform.GetComponentsInChildren<UnityEngine.UI.Dropdown>(true);
+            for (var i = 0; i < dropdowns.Length; i++)
+            {
+                GameObject eventObject = dropdowns[i].gameObject;
+                dropdowns[i].onValueChanged.AddListener(args =>
+                {
+                    OnNotify(eventObject.name, eventObject, args);
+                });
+            }
+
+            TMPro.TMP_Dropdown[] tmp_dropdowns = gameObject.transform.GetComponentsInChildren<TMPro.TMP_Dropdown>(true);
+            for (var i = 0; i < tmp_dropdowns.Length; i++)
+            {
+                GameObject eventObject = tmp_dropdowns[i].gameObject;
+                tmp_dropdowns[i].onValueChanged.AddListener(args =>
+                {
+                    OnNotify(eventObject.name, eventObject, args);
+                });
+            }
+            UnityEngine.UI.Slider[] sliders = gameObject.transform.GetComponentsInChildren<UnityEngine.UI.Slider>(true);
+            for (var i = 0; i < sliders.Length; i++)
+            {
+                GameObject eventObject = sliders[i].gameObject;
+                sliders[i].onValueChanged.AddListener(args =>
+                {
+                    OnNotify(eventObject.name, eventObject, args);
+                });
+            }
+        }
+
         /// <summary>
-        /// 克隆对象
+        /// 加载子级UI界面
         /// </summary>
         /// <param name="name"></param>
-        public void Instantiate(string name)
+        /// <param name="childName"></param>
+        public GameObject GenerateSubUIHandler(string name, string path, string childName)
         {
-            Instantiate(name, null);
+            AssetHandle handle = ResourcesManager.Instance.Load(path);
+            if (handle == null)
+            {
+                return default;
+            }
+            GameObject gameObject = handle.CreateGameObject(GetChild(name).transform, childName);
+            if (gameObject == null)
+            {
+                Debug.Log("创建子级UI出错");
+                return default;
+            }
+            gameObject.AddComponent<AssetBundleBehaviour>().AddAssetHandle(handle);
+            gameObject.SetActive(true);
+            InitUnityEvent(gameObject);
+            return gameObject;
+        }
+
+        public GameObject GenerateSubUIHandler(string parentName, string path, string uiName, LuaTable luaScript)
+        {
+            CommonUIFormHandler handler = (CommonUIFormHandler)manager.OpenUI(path, uiName, luaScript);
+            if (handler == null)
+            {
+                Debug.LogError("load sub ui error");
+                return default;
+            }
+            handler.gameObject.SetParent(GetChild(parentName), Vector3.zero, Vector3.zero, Vector3.one);
+            return gameObject;
         }
 
         /// <summary>
         /// 克隆对象
         /// </summary>
         /// <param name="name"></param>
-        public void Instantiate(string name, GameFrameworkAction<GameObject> OnClick)
+        public GameObject Instantiate(string name)
+        {
+            return Instantiate(name, null);
+        }
+
+        /// <summary>
+        /// 克隆对象
+        /// </summary>
+        /// <param name="name"></param>
+        public GameObject Instantiate(string name, GameFrameworkAction<GameObject> OnClick)
         {
             RectTransform transform = null;
-            if (cloneCaches.TryGetValue(name, out Queue<RectTransform> queue))
+            if (!cloneCaches.TryGetValue(name, out Queue<RectTransform> queue))
             {
-                if (queue.Count > 0)
-                {
-                    transform = queue.Dequeue();
-                }
-                else
-                {
-                    GameObject template = GetChild(name);
-                    if (template == null)
-                    {
-                        Debug.LogError(template);
-                        return;
-                    }
-                    transform = GameObject.Instantiate<GameObject>(template).GetComponent<RectTransform>();
-                    transform.name = template.name;
-                }
+                cloneCaches.Add(name, queue = new Queue<RectTransform>());
             }
+            if (queue.Count > 0)
+            {
+                transform = queue.Dequeue();
+            }
+            else
+            {
+                GameObject template = GetChild(name);
+                if (template == null)
+                {
+                    return default;
+                }
+                transform = GameObject.Instantiate<GameObject>(template, template.transform.parent).GetComponent<RectTransform>();
+                transform.name = template.name;
+                transform.gameObject.SetParent(template.transform.parent.gameObject);
+            }
+
             if (!clones.TryGetValue(name, out List<RectTransform> temps))
             {
                 clones.Add(name, temps = new List<RectTransform>());
             }
-            
-            if (OnClick == null)
+
+            if (OnClick != null)
             {
-                return;
+                UnityEngine.UI.Button buttons = transform.GetComponent<UnityEngine.UI.Button>();
+                if (buttons != null)
+                {
+                    buttons.onClick.AddListener(() => { OnClick(transform.gameObject); });
+                }
+                else
+                {
+                    UnityEngine.UI.Toggle Toggles = transform.GetComponent<UnityEngine.UI.Toggle>();
+                    if (Toggles != null)
+                    {
+                        Toggles.onValueChanged.AddListener((state) => { if (state) { OnClick(transform.gameObject); } });
+                    }
+                }
             }
-            UnityEngine.UI.Button buttons = transform.GetComponent<UnityEngine.UI.Button>();
-            buttons.onClick.AddListener(() =>
+            temps.Add(transform);
+            transform.gameObject.SetActive(true);
+            transform.SetAsLastSibling();
+            return transform.gameObject;
+        }
+
+        public void ClearClone(bool isCache = true)
+        {
+            string[] keys = clones.Keys.ToArray();
+            for (var i = 0; i < keys.Length; i++)
             {
-                OnClick(transform.gameObject);
-            });
+                ClearClone(keys[i], isCache);
+            }
         }
 
         /// <summary>
@@ -282,6 +402,7 @@ namespace GameFramework.Runtime.Game
             {
                 if (isCache)
                 {
+                    temps[i].gameObject.SetActive(false);
                     cache.Enqueue(temps[i]);
                 }
                 else
@@ -301,11 +422,12 @@ namespace GameFramework.Runtime.Game
         /// <param name="args"></param>
         public void OnNotify(string eventId, GameObject sender, object args)
         {
+            Debug.Log("notify ui event:" + eventId);
             adapter.EventHandle(eventId, sender, args);
         }
 
         /// <summary>
-        /// 获取子节点
+        /// 获取子节�?
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
@@ -382,6 +504,22 @@ namespace GameFramework.Runtime.Game
             SetSprite(name, sprite);
         }
 
+
+        /// <summary>
+        /// 设置精灵图片
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="spriteName"></param>
+        public void SetSprite(GameObject obj, string spriteName)
+        {
+            UnityEngine.UI.Image image = obj.GetComponent<UnityEngine.UI.Image>();
+            if (image == null) return;
+            AssetHandle handle = ResourcesManager.Instance.Load(spriteName);
+            if (handle == null) return;
+            Sprite sprite = (Sprite)handle.LoadAsset(typeof(Sprite));
+            image.sprite = sprite;
+        }
+
         /// <summary>
         /// 获取文本
         /// </summary>
@@ -418,6 +556,56 @@ namespace GameFramework.Runtime.Game
                 return;
             }
             text.text = info;
+        }
+
+        /// <summary>
+        /// 设置文本
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="info"></param>
+        public void SetText(GameObject obj, string info)
+        {
+            if (obj == null) return;
+            UnityEngine.UI.Text text = obj.GetComponent<UnityEngine.UI.Text>();
+            if (text == null) return;
+            text.text = info;
+        }
+
+        public void SetText(Transform tran, string info)
+        {
+            SetText(tran.gameObject, info);
+        }
+
+        /// <summary>
+        /// 设置指定gameObject的按�?点击事件
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="OnClick"></param>
+        public void SetButtonOnClick(GameObject obj, GameFrameworkAction OnClick)
+        {
+            UnityEngine.UI.Button buttons = obj.GetComponent<UnityEngine.UI.Button>();
+            if (buttons)
+            {
+                buttons.onClick.AddListener(() =>
+                {
+                    OnClick();
+                });
+            }
+        }
+
+        /// <summary>
+        /// 设置指定gameObject的isActive
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="OnClick"></param>
+        public void SetActive(GameObject obj, bool isActive)
+        {
+            if (obj) obj.SetActive(isActive);
+        }
+
+        public void SetActive(Transform tran, bool isActive)
+        {
+            if (tran) SetActive(tran.gameObject, isActive);
         }
     }
 }

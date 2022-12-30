@@ -2,19 +2,19 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BehaviourGame
+namespace GameFramework.Runtime.Behaviour
 {
-    public class StateManager 
+    public class StateManager
     {
-        private StateHandle curState;
+        private BehaviourHandle curState;
 
         private BehaviourEntity entity;
 
-        private List<StateHandle> fsmStates = new List<StateHandle>();
+        private List<BehaviourHandle> fsmStates = new List<BehaviourHandle>();
 
         public StateManager()
-        { 
-    
+        {
+
         }
 
         public void Update()
@@ -23,11 +23,11 @@ namespace BehaviourGame
             {
                 return;
             }
-            curState.Act();
+            curState.OnExecute();
         }
 
         //添加状态
-        public void AddState(StateHandle fsmState)
+        public void AddState(BehaviourHandle fsmState)
         {
             if (fsmStates.Contains(fsmState))
             {
@@ -38,7 +38,7 @@ namespace BehaviourGame
 
         public void RemoveState(string stateName)
         {
-            StateHandle state = GetState(stateName);
+            BehaviourHandle state = GetState(stateName);
             if (state == null)
             {
                 return;
@@ -46,12 +46,12 @@ namespace BehaviourGame
             fsmStates.Remove(state);
         }
 
-        public StateHandle GetState(string stateName)
+        public BehaviourHandle GetState(string stateName)
         {
             return fsmStates.Find(x => x.stateName == stateName);
         }
 
-        public void OnTrigger(string stateName,params object[] obj)
+        public void OnTrigger(string stateName, params object[] obj)
         {
             if (string.IsNullOrEmpty(stateName))
             {
@@ -59,14 +59,14 @@ namespace BehaviourGame
                 return;
             }
 
-            StateHandle state = GetState(stateName);
+            BehaviourHandle state = GetState(stateName);
             if (state == null)
             {
                 Debug.LogError("为空");
                 return;
             }
-            curState?.DoAfterLeave();
-            state.DoBeforeEnter(entity, obj);
+            curState?.OnLeave();
+            state.OnEntry(entity, obj);
             curState = state;
         }
 

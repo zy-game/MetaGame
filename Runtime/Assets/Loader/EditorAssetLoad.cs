@@ -1,8 +1,9 @@
 ﻿#if UNITY_EDITOR
+using GameFramework.Runtime.Assets;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace GameFramework.Runtime.Assets
+namespace GameFramework.Editor.Assets
 {
     public class EditorAssetLoad : AssetLoad
     {

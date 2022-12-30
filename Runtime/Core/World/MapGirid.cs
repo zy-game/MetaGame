@@ -84,7 +84,7 @@ namespace GameFramework
         {
             if (index < 0 || index > Count - 1)
             {
-                throw new IndexOutOfRangeException("坐标：" + index.ToString());
+                throw new IndexOutOfRangeException("坐标：" + index.ToString() + "  " + Count);
             }
             return maps[index / RowCount, index % RowCount];
         }
@@ -99,31 +99,60 @@ namespace GameFramework
         }
         public bool IsObstacle(Vector3 position)
         {
-            return ToMapNode(PositionToIndex(position)).isWall;
+            return !ToMapNode(PositionToIndex(position)).isWall;
         }
 
-        private int PositionToIndex(Vector3 position)
+        public int PositionToIndex(Vector3 position)
         {
             float range = width / 2;
             float offset_x = position.x + range;
             float offset_y = position.z + range;
-            float mod_x = Math.Abs(offset_x % GridSize);
+            // float mod_x = Math.Abs(offset_x % GridSize);
             int count_x = (int)Math.Abs(offset_x / GridSize);
-            if (mod_x > GridSize / 2)
-            {
-                count_x++;
-            }
+            // if (mod_x > GridSize / 2)
+            // {
+            //     count_x++;
+            // }
 
-            float mod_y = Math.Abs(offset_y % GridSize);
+            // float mod_y = Math.Abs(offset_y % GridSize);
             int count_y = (int)Math.Abs(offset_y / GridSize);
-            if (mod_y > GridSize / 2)
-            {
-                count_y++;
-            }
+            // if (mod_y > GridSize / 2)
+            // {
+            //     count_y++;
+            // }
 
             return Math.Max(0, count_y * RowCount) + count_x;
         }
 
+        public void AddTerrainNode(Vector3 position)
+        {
+            var node = ToMapNode(position);
+            if (node == null)
+            {
+                return;
+            }
+            node.IsTerrain = true;
+        }
+
+        public void RemoveTerrainNode(Vector3 position)
+        {
+            var node = ToMapNode(position);
+            if (node == null)
+            {
+                return;
+            }
+            node.IsTerrain = false;
+        }
+
+        public bool GetNodeIsTerrain(Vector3 position)
+        {
+            var node = ToMapNode(position);
+            if (node == null)
+            {
+                return false;
+            }
+            return node.IsTerrain;
+        }
 
         public void AddObstacle(int index)
         {
@@ -136,12 +165,7 @@ namespace GameFramework
 
         public void AddObstacle(Vector3 position)
         {
-            MapNode node = ToMapNode(PositionToIndex(position));
-            if (node == null)
-            {
-                throw new KeyNotFoundException(position.ToString());
-            }
-            node.Closed();
+            AddObstacle(PositionToIndex(position));
         }
 
         public void RemoveObstacle(int index)
@@ -169,7 +193,7 @@ namespace GameFramework
             Queue<MapNode> openSet = new Queue<MapNode>();//开放节点   需要被评估的节点
             HashSet<MapNode> closeSet = new HashSet<MapNode>();//闭合节点   已经评估的节点
             openSet.Enqueue(startNode);
-            while (openSet.Count > 0 )
+            while (openSet.Count > 0)
             {
                 MapNode template = openSet.Dequeue();
                 closeSet.Add(template);
@@ -276,6 +300,8 @@ namespace GameFramework
                 get;
             }
 
+            public bool IsTerrain { get; set; }
+
             public float fCost { get { return hCost + gCost; } }
 
             public int RowIndex
@@ -304,7 +330,7 @@ namespace GameFramework
                 this.isWall = isWall;
                 this.rowCount = rowCount;
                 this.gridSize = gridSize / 2;
-                center = new Vector3(offset_x, 0, offset_y);
+                center = new Vector3(offset_x + this.gridSize, 0, offset_y + this.gridSize);
                 size = new Vector3(gridSize, 0, gridSize);
             }
 

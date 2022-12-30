@@ -53,10 +53,10 @@ namespace GameFramework.Editor.UIGenerator
             UIConfig config = new UIConfig();
             if (!File.Exists(filePath))
             {
-                File.WriteAllText(filePath, CatJson.JsonParser.ToJson(config));
+                File.WriteAllText(filePath, Newtonsoft.Json.JsonConvert.SerializeObject(config));
             }
 
-            config = CatJson.JsonParser.ParseJson<UIConfig>(File.ReadAllText(filePath));
+            config = Newtonsoft.Json.JsonConvert.DeserializeObject<UIConfig>(File.ReadAllText(filePath));
             foreach (var item in config.dic.Values)
             {
                 ViewNode node = (ViewNode)Activator.CreateInstance(Type.GetType(item.type));
@@ -148,7 +148,7 @@ namespace GameFramework.Editor.UIGenerator
 
         private static void InitializeLayerEntity(UIConfig config, ViewNode parent, Layer layer)
         {
-            string guid = Utility.GetMd5Hash(layer.Id.ToString());
+            string guid = StaticMethod.GetMd5Hash(layer.Id.ToString());
             ViewNode componentNode = UIGeneratorWindow.window.GetViewNode(guid);
             if (componentNode != null)
             {
@@ -156,7 +156,7 @@ namespace GameFramework.Editor.UIGenerator
                 return;
             }
             EntityNode entity = new EntityNode();
-            entity.guid = Utility.GetMd5Hash(layer.Id + "Object");
+            entity.guid = StaticMethod.GetMd5Hash(layer.Id + "Object");
             entity.Initialized(null);
             entity.Datable.name = layer.Name.Replace(" ", "").Replace("-", "");
             UIGeneratorWindow.window.AddViewNode(entity);
@@ -212,7 +212,7 @@ namespace GameFramework.Editor.UIGenerator
             string configPath = string.Format(UI_GENERATE_DATA_PATH, name);
             string filePath = Application.dataPath + configPath;
             File.Delete(filePath);
-            File.WriteAllText(filePath, CatJson.JsonParser.ToJson(config));
+            File.WriteAllText(filePath, Newtonsoft.Json.JsonConvert.SerializeObject(config));
         }
     }
 }

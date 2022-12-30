@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BestHTTP.WebSocket;
 using GameFramework.Utils;
+using WebSocketSharp;
+using WebSocketSharp.Net;
 
 namespace GameFramework.Runtime.Network
 {
@@ -36,18 +37,17 @@ namespace GameFramework.Runtime.Network
             connectTask = new TaskCompletionSource();
             this.name = name;
             this.active = false;
-            this.webSocket = new WebSocket(new Uri(url));
+            this.webSocket = new WebSocket(url);
             this.channelHandler = channelHandler;
-            this.webSocket.StartPingThread = true;
             this.webSocket.OnOpen += OnConnectCompletedCallback;
-            this.webSocket.OnBinary += OnMessageReceived;
-            this.webSocket.OnClosed += OnClosed;
+            this.webSocket.OnMessage += OnMessageReceived;
+            this.webSocket.OnClose += OnClosed;
             this.webSocket.OnError += OnError;
-            this.webSocket.Open();
+            this.webSocket.Connect();
             await connectTask.Task;
         }
 
-        private void OnConnectCompletedCallback(WebSocket webSocket)
+        private void OnConnectCompletedCallback(object sender, EventArgs e)
         {
             if (connectTask == null)
             {
@@ -55,7 +55,7 @@ namespace GameFramework.Runtime.Network
             }
             connectTask.Complete();
             connectTask = null;
-            if (!webSocket.IsOpen)
+            if (!webSocket.IsConnected)
             {
                 this.active = false;
                 return;
@@ -66,35 +66,35 @@ namespace GameFramework.Runtime.Network
             this.channelHandler.ChannelActive(channelContext);
         }
 
-        private void OnMessageReceived(WebSocket webSocket, byte[] message)
+        private void OnMessageReceived(object sender, MessageEventArgs args)
         {
             if (this.channelHandler == null)
             {
                 return;
             }
-            UnityEngine.Debug.Log("web socket recv:" + message.Length);
-            this.channelHandler.ChannelRead(channelContext, message);
+            UnityEngine.Debug.Log("web socket recv:" + args.RawData.Length);
+            this.channelHandler.ChannelRead(channelContext, args.RawData);
         }
 
-        private void OnClosed(WebSocket webSocket, UInt16 code, string message)
+        private void OnClosed(object sender, CloseEventArgs args)
         {
             if (this.channelHandler == null)
             {
                 return;
             }
-            UnityEngine.Debug.Log(message);
+            UnityEngine.Debug.Log(args.Reason);
             this.channelHandler.ChannelInactive(this.channelContext);
             closedTask.Complete();
             closedTask = null;
         }
 
-        private void OnError(WebSocket webSocket, string reason)
+        private void OnError(object sender, ErrorEventArgs args)
         {
             if (this.channelHandler == null)
             {
                 return;
             }
-            this.channelHandler.ChannelErrored(this.channelContext, reason);
+            this.channelHandler.ChannelErrored(this.channelContext, args.Message);
         }
 
         public Task Disconnect()

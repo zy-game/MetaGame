@@ -16,8 +16,8 @@ public class AutoContentSizeEditor : Editor
         AutoContentSize a = target as AutoContentSize;
         a.horizontalFit = (AutoContentSize.FitMode)DrawEnum("Horizontal", a.horizontalFit);
         a.verticalFit = (AutoContentSize.FitMode)DrawEnum("Vertical", a.verticalFit);
-        a.image = DrawObject<Image>("Target", a.image);
-        if (a.image == null)
+        a.target = DrawObject("Target", a.target);
+        if (a.target == null)
         {            
             EditorUtility.SetDirty(a);
             return;

@@ -5,6 +5,7 @@ using UnityEditor;
 using System.IO;
 using XLua;
 using System.Linq;
+using GameFramework.Runtime;
 
 namespace GameEditor.ProtcolEditor
 {

@@ -36,7 +36,7 @@ namespace GameEditor.BuildAsset
                     Debug.LogError("打包错误，找不到lua文件:" + filePath);
                     return null;
                 }
-                byte[] bts = File.ReadAllBytes(filePath);
+                byte[] bts =  File.ReadAllBytes(filePath);
 
                 string luaPath = dirName + "/" + filePath.Replace(dirPath, "");
                 luaBytes.Add(new LuaByte(luaPath, bts));

@@ -6,15 +6,17 @@ using UnityEngine;
 //本地配置
 public class LocalCommonConfig
 {
-    [Desc("应用程序版本")]
+    [Desc("版本号")]
     public int version;
-    [Desc("资源后缀名")]
+    [Desc("资源扩展名")]
     public string assetBundleExtName = ".unity3d";
-    [Desc("服务端地址")]
+    [Desc("远程地址")]
     public string remoteurl;
-    [Desc("是否有本地释放发资源")]
+    [Desc("远程下载配置密钥")]
+    public string remotekey;
+    [Desc("使用本地编译资源")]
     public bool localReleaseAsset;
-    [Desc("游戏帧频")]
+    [Desc("帧率")]
     public int gameFrameRate=45;
     [Desc("公共模块名")]
     public string commonModuleName = "common";
@@ -22,15 +24,19 @@ public class LocalCommonConfig
     public string mainModuleName = "main";
     [Desc("配置模块名")]
     public string configModuleName = "config";
-    [Desc("打包的lua代码后缀名")]
+    [Desc("Lua代码扩展名")]
     public string buildLuaCodeExtName = ".luabytes";
-    [Desc("解包密钥")]
+    [Desc("编辑器平台")]
+    public string editorPlatform = "Windows";
+    //代码模块名
+    public string codeModuleName = "luapackage";
+    [Desc("压缩密码")]
     public string compressPassword = "123456";
-    [Desc("编辑器下使用luabytes")]
+    [Desc("编辑器下使用luaBytes")]
     public bool editorUseLuaBytes = false;
-    [Desc("编辑器下做资源更新")]
+    [Desc("编辑器下使用资源更新")]
     public bool editorUpdateAssets = false;
-    [Desc("编辑器加载assetbundle")]
+    [Desc("编辑器下加载资源包")]
     public bool editorLoadAssetBundle = false;
 
     //http 连接地址
@@ -47,12 +53,22 @@ public class LocalCommonConfig
     public string configUrl;
 
     //使用测试地址
-    public bool useTestUrl = false;    
+    public bool useTestUrl = false;
     public List<TestUrl> testUrls;
+
+#if UNITY_EDITOR
+    public static LocalCommonConfig Get()
+    {
+        string path = AppConst.AppConfigPath;
+        if (!System.IO.File.Exists(path)) return new LocalCommonConfig();
+        string content = System.IO.File.ReadAllText(path);
+        return JsonObject.Deserialize<LocalCommonConfig>(content);
+    }
+#endif
 
 }
 
-//测试地址
+//??????
 public class TestUrl
 {
     public string desc;

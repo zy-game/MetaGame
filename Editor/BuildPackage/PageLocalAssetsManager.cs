@@ -36,7 +36,7 @@ namespace GameEditor.BuildAsset
         {
             curSelectCount = 0;
             items.Clear();
-            cacheRootPath = buildSetting.assetConfig.buildRootPath + BuildAssetConfig.buildCachePath + buildSetting.PlatformName + "/";
+            cacheRootPath = BuildAssetConfig.buildRootPath + BuildAssetConfig.buildCachePath + buildSetting.PlatformName + "/";
             string versionPath = cacheRootPath + "version.txt";
             if (!File.Exists(versionPath))
             {
@@ -267,6 +267,10 @@ namespace GameEditor.BuildAsset
                 string fileName = v.name;
                 string scrFilePath = scrDir + fileName;
                 string outFilePath = outDir + fileName;
+
+                string outFileDir = Path.GetDirectoryName(outFilePath);
+                if (!Directory.Exists(outFileDir))
+                    Directory.CreateDirectory(outFileDir);
                 File.Copy(scrFilePath, outFilePath);
             }
         }

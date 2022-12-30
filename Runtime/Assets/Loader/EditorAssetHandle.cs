@@ -5,8 +5,9 @@ using UnityEditor;
 using System.IO;
 using System.Collections;
 using UnityEditor.SceneManagement;
+using GameFramework.Runtime.Assets;
 
-namespace GameFramework.Runtime.Assets
+namespace GameFramework.Editor.Assets
 {
     public class EditorAssetHandle : AssetHandle
     {

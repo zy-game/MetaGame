@@ -11,7 +11,7 @@ namespace GameEditor
 
         public static T Open<T>(int width, int height, string title = "") where T : BaseEditorWindow
         {
-            BaseEditorWindow window = null;
+            BaseEditorWindow window;
             if (string.IsNullOrEmpty(title)) window = GetWindow<T>();
             else window = GetWindow<T>(title);
             window.minSize = new Vector2(width, height);
@@ -38,9 +38,38 @@ namespace GameEditor
             editorCoroutine.StopAll();
         }
 
+        public int DelayCall(float time, System.Action action, int repeat = 1)
+        {
+            repeat = repeat < 0 ? 1 : repeat;
+            return StartCor(DelayCallCor(time, action, repeat));
+        }
+
+        private IEnumerator DelayCallCor(float time, System.Action action, int repeat)
+        {
+            yield return new Wait(time);
+            if (repeat == 1)
+                action?.Invoke();
+            else if (repeat == 0)
+            {
+                while (true) 
+                {
+                    action?.Invoke();
+                    yield return new Wait(time);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < repeat; i++) 
+                {
+                    action?.Invoke();
+                    yield return new Wait(time);
+                }
+            }
+        }
+
         protected virtual void Update()
         {
-            editorCoroutine.Update();
+            editorCoroutine.Update();            
         }
 
         protected void Label(string v, int width, int height)

@@ -107,6 +107,10 @@ namespace GameFramework.Runtime.Game
         /// <param name="active"></param>
         public void SetActive(bool active)
         {
+            if (_object == null)
+            {
+                return;
+            }
             _object.SetActive(active);
         }
 

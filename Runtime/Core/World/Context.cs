@@ -56,5 +56,10 @@ namespace GameFramework
         {
             entities.Add(entity);
         }
+
+        public void Clear()
+        {
+            entities.Clear();
+        }
     }
 }

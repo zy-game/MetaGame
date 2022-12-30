@@ -22,8 +22,6 @@ namespace GameFramework
         /// </summary>
         string guid { get; }
 
-        string path { get; }
-
         int tag { get; }
 
         /// <summary>

@@ -17,9 +17,11 @@ namespace GameFramework.Runtime.Game
             }
             else
             {
-                AssetHandle handle = ResourcesManager.Instance.Load("common/prefab/MessageBox");
+                AssetHandle handle = ResourcesManager.Instance.Load("common/prefab/Loading");
                 _object = handle.CreateGameObject();
+                _object.AddComponent<AssetBundleBehaviour>().AddAssetHandle(handle);
             }
+            version = "version:" + Application.version;
         }
         public GameObject gameObject
         {
@@ -72,6 +74,24 @@ namespace GameFramework.Runtime.Game
 
         public void Dispose()
         {
+
+        }
+
+        public void SetLoadingBackground(string textureName)
+        {
+            AssetHandle handle = ResourcesManager.Instance.Load(textureName);
+            if (handle == null)
+            {
+                return;
+            }
+            Texture2D texture = handle.LoadAsset<Texture2D>();
+            if (texture == null)
+            {
+                return;
+            }
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one / 2, 100);
+            this._object.GetComponent<Image>().sprite = sprite;
+            ResourcesManager.Instance.SetAssetBundleBehaviour(_object, handle);
         }
     }
 }

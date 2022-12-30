@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace GameFramework.Runtime.Assets 
+namespace GameFramework.Runtime.Assets
 {
     public class AssetFileEntity
     {
@@ -20,12 +20,46 @@ namespace GameFramework.Runtime.Assets
         }
 
         public int version;
-        public string moduleName;        
-        public List<FileItem> files;       
+        public string moduleName;
+        public List<FileItem> files;
 
         public static AssetFileEntity Get(string json)
         {
-            return JsonUtility.FromJson<AssetFileEntity>(json);
+            return JsonObject.Deserialize<AssetFileEntity>(json);
+        }
+
+        public static AssetFileEntity Get(AssetFileEntity source)
+        {
+            var entity = new AssetFileEntity();
+            entity.files = new List<FileItem>();
+            entity.version = 0;
+            entity.moduleName = source.moduleName;
+            return entity;
+        }
+
+        public static AssetFileEntity Copy(AssetFileEntity source)
+        {
+            var entity = new AssetFileEntity();
+            entity.files = new List<FileItem>();
+            entity.version = source.version;
+            entity.moduleName = source.moduleName;
+
+            foreach (var v in source.files)
+            {
+                var newItem = new FileItem();
+                newItem.Copy(v);
+                entity.files.Add(newItem);
+            }
+            return entity;
+        }
+
+        public void UpdateItem(FileItem item)
+        {
+            var curItem = FindItem(item.name);
+            if (curItem == null)
+                files.Add(item);
+            else
+                curItem.Copy(item);
         }
 
         public bool ContainsMd5(FileItem item)

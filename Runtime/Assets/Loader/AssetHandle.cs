@@ -82,7 +82,7 @@ namespace GameFramework.Runtime.Assets
         /// <returns></returns>
         public abstract Object LoadAsset(System.Type type, string assetName = "");
 
-        public virtual T LoadAsset<T>(string assetName = "") where T:Object { return null; }
+        public virtual T LoadAsset<T>(string assetName = "") where T : Object { return null; }
 
         /// <summary>
         /// 异步创建游戏对象
@@ -100,18 +100,19 @@ namespace GameFramework.Runtime.Assets
         /// <returns></returns>
         public abstract AssetHandleAsync<Object> LoadAssetAsync(System.Type type, string assetName = "");
 
-        public virtual AssetHandleAsync<T> LoadAssetAsync<T>(string assetName = "") where T:Object { return null; }
+        public virtual AssetHandleAsync<T> LoadAssetAsync<T>(string assetName = "") where T : Object { return null; }
 
         /// <summary>
         /// 异步加载场景
         /// </summary>
         /// <param name="assetName"></param>
         public abstract AsyncOperation LoadSceneAsync(string assetName);
-         
+
         public abstract string[] GetDepends();
 
         public virtual void Unload(bool unloadAllLoadedObjects)
         {
+            Debug.Log("unload asset handle:" + packageName);
             if (isRelease && unloadAllLoadedObjects) return;
             isRelease = true;
             if (unloadAllLoadedObjects)

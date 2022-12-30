@@ -35,7 +35,7 @@ namespace GameEditor.BuildAsset
             if (assetData == null)
             {
                 isNew = true;
-                assetData = new BuildAssetData();
+                assetData = ScriptableObject.CreateInstance<BuildAssetData>();
                 assetData.assetType = AssetType.Module;
                 assetData.dependPackage = new List<BuildAssetData>();
             }
@@ -106,7 +106,7 @@ namespace GameEditor.BuildAsset
         {
             curSelectCount = 0;
             GUILayout.Space(5);
-            GUILayout.Label("选择依赖包体:");
+            GUILayout.Label("选择关联包体:");
             GUILayout.Box("", selfGUIStyle.line, GUILayout.Width(buildSetting.position.width), GUILayout.Height(2));
             scrollPos = GUILayout.BeginScrollView(scrollPos);
             foreach (var item in items)

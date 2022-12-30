@@ -60,11 +60,13 @@ namespace GameFramework.Runtime.Assets
                     //加载到资源文件，直接退出从远程更新
                     async.Finished();
                     Debug.LogError("读取不到本地资源文件:" + fileListPath);
+                    request.Dispose();
                     yield break;
                 }
                 AssetFileEntity entity = JsonObject.Deserialize<AssetFileEntity>(request.downloadHandler.text);
                 fileEntities.Add(entity);
                 LoadReleaseItems(entity);
+                request.Dispose();
             }
             StartRelease();
 

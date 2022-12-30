@@ -66,10 +66,16 @@ public class LocalData : Singleton<LocalData>
 
     public void Save(string json)
     {
+        string path = AppConst.DataPath + fileName;
+        if (string.IsNullOrEmpty(json))
+        {
+            File.Delete(path);
+            return;
+        }
         content = json;
         byte[] bts = System.Text.Encoding.UTF8.GetBytes(json);
-        string path = AppConst.DataPath + fileName;
-        if (Directory.Exists(AppConst.DataPath))
+      
+        if (!Directory.Exists(AppConst.DataPath))
             Directory.CreateDirectory(AppConst.DataPath);
         bts = GZip.zip(bts, AppConst.config.compressPassword);
         File.WriteAllBytes(path, bts);

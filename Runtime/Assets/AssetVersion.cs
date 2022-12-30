@@ -7,19 +7,30 @@ namespace GameFramework.Runtime.Assets
     {
         public static AssetVersion remoteVersion;
         public static AssetVersion localVersion;
+        public static AssetFileEntity remoteCodeFileList;
+        public static AssetFileEntity localCodeFileList;
+
 
         public int packageVersion;
         public Dictionary<string, int> versionMap;
         public Dictionary<string, string[]> dependsMap;
+        public Dictionary<string, string[]> codeLinkMap;
 
-        public void UpdateVersion(string name,int version)
-        {          
+        public AssetVersion()
+        {
+            versionMap = new Dictionary<string, int>();
+            dependsMap = new Dictionary<string, string[]>();
+            codeLinkMap = new Dictionary<string, string[]>();
+        }
+
+        public void UpdateVersion(string name, int version)
+        {
             if (versionMap.ContainsKey(name))
             {
                 versionMap[name] = version;
                 return;
             }
-            versionMap.Add(name,version);
+            versionMap.Add(name, version);
         }
 
         public void UpdateDepends(string name, string[] depends)
@@ -30,6 +41,16 @@ namespace GameFramework.Runtime.Assets
                 return;
             }
             dependsMap.Add(name, depends);
+        }
+
+        public void UpdateLinkCodePackage(string name, string[] codePackage)
+        {
+            if (codeLinkMap.ContainsKey(name))
+            {
+                codeLinkMap[name] = codePackage;
+                return;
+            }
+            codeLinkMap.Add(name, codePackage);
         }
 
         /// <summary>
@@ -63,12 +84,74 @@ namespace GameFramework.Runtime.Assets
             return dependList.Count;
         }
 
+        public string[] LoadCodePackageNames(string moduleName)
+        {
+            if (!codeLinkMap.ContainsKey(moduleName))
+                return new string[0];
+            return codeLinkMap[moduleName];
+        }
+
         // 查询资源包依赖
         public string[] FindDenpends(string moduleName)
         {
             List<string> dependList = new List<string>();
             FindDepends(moduleName, dependList);
             return dependList.ToArray();
+        }
+
+        //获取资源更新模块
+        public static List<string> GetUpdateModules(string modeleName, out bool error)
+        {
+            Debug.Log("update module:" + modeleName);
+            string[] depends = remoteVersion.FindDenpends(modeleName);
+            List<string> updateModules = new List<string>();
+
+            //模块内代码更新检测
+            Dictionary<string, string[]> codeCheckMap = new();
+            codeCheckMap.Add(modeleName, remoteVersion.LoadCodePackageNames(modeleName));
+            foreach (var v in depends)
+            {
+                codeCheckMap.Add(v, remoteVersion.LoadCodePackageNames(v));
+            }
+
+            foreach (var m in codeCheckMap)
+            {
+                string mn = m.Key;
+                foreach (var codeName in m.Value)
+                {
+                    var item = remoteCodeFileList.FindItem(codeName + AppConst.config.buildLuaCodeExtName);
+                    if (item == null)
+                    {
+                        error = true;
+                        Debug.LogError("代码配置上找不到模块关联的代码包:moduleName:" + mn + "  codePackageName:" + codeName);
+                        return null;
+                    }
+
+                    if (!localCodeFileList.ContainsMd5(item))
+                    {
+                        updateModules.Add(mn);
+                        break;
+                    }
+                }
+            }
+
+            //模块版本检测
+            if (!CompareVersion(modeleName))
+            {
+                if (!updateModules.Contains(modeleName))
+                    updateModules.Add(modeleName);
+            }
+            foreach (var name in depends)
+            {
+                if (!CompareVersion(name))
+                {
+                    if (!updateModules.Contains(name))
+                        updateModules.Add(name);
+                }
+            }
+
+            error = false;
+            return updateModules;
         }
 
         //获取需要更新的资源包
@@ -106,5 +189,7 @@ namespace GameFramework.Runtime.Assets
             int remote = remoteVersion.FindVersion(moduleName);
             return local == remote;
         }
+
+
     }
 }

@@ -19,7 +19,7 @@ namespace GameFramework.Runtime.Game
         {
             RotationInternalTime = 0.1f;
             this.gameWorld = gameWorld;
-            _skybox = gameWorld.WorldCamera.gameObject.AddComponent<UnityEngine.Skybox>();
+            _skybox = CameraRendererLayer.BaseCamera.gameObject.AddComponent<UnityEngine.Skybox>();
         }
 
         /// <summary>
@@ -52,12 +52,17 @@ namespace GameFramework.Runtime.Game
         /// init the skybox
         /// </summary>
         /// <param name="skyName"></param>
-        public void Initialize(float rotationTime, float rotationAngle, string skyName)
+        public void Initialize(float rotationTime, float rotationAngle, string path, string skyName)
         {
             RotationInternalTime = rotationTime;
             RatationInternalAngle = rotationAngle;
-            Assets.AssetHandle handle = Assets.ResourcesManager.Instance.Load(skyName);
-            _skybox.material = (Material)handle.LoadAsset(typeof(Material));
+            Debug.Log("set skybox:" + skyName);
+            Material material = Assets.ResourcesManager.Instance.LoadAsset<Material>(path, this._skybox.gameObject, skyName);
+            if (material == null)
+            {
+                return;
+            }
+            _skybox.material = material;
         }
 
         /// <summary>

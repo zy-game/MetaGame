@@ -8,7 +8,7 @@ namespace GameFramework.Runtime.Config
     /// <summary>
     /// 配置表管理器
     /// </summary>
-    public sealed class ConfigManager : Singleton<ConfigManager>, IConfigManager
+    public sealed class ConfigManager : Singleton<ConfigManager>
     {
         private Dictionary<string, IConfigTable> configs = new Dictionary<string, IConfigTable>();
 
@@ -21,13 +21,13 @@ namespace GameFramework.Runtime.Config
         /// </summary>
         /// <param name="configName">配置名</param>
         /// <returns></returns>
-        public IConfigTable LoadConfig(string configName)
+        public IConfigTable LoadConfig<T>(string configName) where T : IConfig
         {
             if (configs.TryGetValue(configName, out IConfigTable table))
             {
                 return table;
             }
-            DefaultConfigTable defaultConfigTable = new DefaultConfigTable();
+            ConfigDatable<T> defaultConfigTable = new ConfigDatable<T>();
             defaultConfigTable.LoadConfig(configName);
             if (defaultConfigTable.Count <= 0)
             {
@@ -40,7 +40,7 @@ namespace GameFramework.Runtime.Config
         public string LoadLuaConfig(string configName)
         {
             configName = configName.EndsWith(AppConst.ConfigExtension) ? configName : configName + AppConst.ConfigExtension;
-            byte[] bytes = GZip.unzip(Utility.ReadFileData(AppConst.ConfigPath + configName), AppConst.config.compressPassword);
+            byte[] bytes = GZip.unzip(StaticMethod.ReadFileData(AppConst.ConfigPath + configName).ToArray(), AppConst.config.compressPassword);
             if (bytes == null || bytes.Length <= 0)
             {
                 return string.Empty;

@@ -47,7 +47,7 @@ namespace GameFramework.Editor.UIGenerator
             if (canvasObject == null)
             {
                 canvasObject = (GameObject)GameObject.Instantiate(Resources.Load("Camera/UICamera"));
-                canvasObject.SetParent(Utility.EmptyTransform);
+                canvasObject.SetParent(StaticMethod.EmptyTransform);
                 Canvas canvasTemplate = (Canvas)GameObject.Instantiate(Resources.Load<Canvas>("Camera/Canvas"));
                 canvas = canvasTemplate.GetComponent<RectTransform>();
                 canvasTemplate.gameObject.SetParent(canvasObject);

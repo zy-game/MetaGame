@@ -9,7 +9,7 @@ namespace GameFramework
         /// 初始化
         /// </summary>
         /// <param name="skyName"></param>
-        void Initialize(float rotationTime, float rotationAngle, string skyName);
+        void Initialize(float rotationTime, float rotationAngle, string path, string skyName);
 
         /// <summary>
         /// 轮询

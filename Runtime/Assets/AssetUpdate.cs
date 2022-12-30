@@ -73,8 +73,7 @@ namespace GameFramework.Runtime.Assets
             remoteFileEntity = new Dictionary<string, AssetFileEntity>();
             foreach (var moduleName in moduleNames)//获取远程文件列表
             {
-                //string url = AppConst.GetModuleUrl(moduleName) + remoteVersion.FindVersion(moduleName) + "/" + fileConfigName;
-                string url = GetFileUrl(moduleName, remoteVersion.FindVersion(moduleName), fileConfigName);
+                string url = GetFileUrl(moduleName,  fileConfigName);
                 using UnityWebRequest request = UnityWebRequest.Get(url);
                 yield return request.SendWebRequest();
                 if (request.result == UnityWebRequest.Result.Success)
@@ -106,7 +105,7 @@ namespace GameFramework.Runtime.Assets
                     //所有资源都需要下载
                     foreach (var item in romoteEntity.files)
                     {
-                        string url = GetFileUrl(moduleName, version, item.name);
+                        string url = GetFileUrl(moduleName, item.name);
                         FileItem updateItem = new FileItem
                         {
                             url = url,
@@ -133,7 +132,7 @@ namespace GameFramework.Runtime.Assets
 
                         if (!localEntity.ContainsMd5(item) || !exists)
                         {
-                            string url = GetFileUrl(moduleName, version, item.name);
+                            string url = GetFileUrl(moduleName, item.name);
                             FileItem updateItem = new FileItem
                             {
                                 url = url,
@@ -158,9 +157,44 @@ namespace GameFramework.Runtime.Assets
                             delItems.Add(delItem);
                         }
                     }
-
                 }
             }
+
+            //检测对应的代码更新
+            string codeModuleName = AppConst.config.codeModuleName;
+            localFileEntity.Add(codeModuleName, AssetVersion.localCodeFileList);
+            AssetFileEntity updateCodeFileList = AssetFileEntity.Copy(AssetVersion.localCodeFileList);
+            remoteFileEntity.Add(codeModuleName, updateCodeFileList);
+            foreach (var moduleName in moduleNames)
+            {
+                string[] codePackageNames = AssetVersion.remoteVersion.LoadCodePackageNames(moduleName);
+                foreach (var codeName in codePackageNames)
+                {
+                    AssetFileEntity.FileItem remoteItem = AssetVersion.remoteCodeFileList.FindItem(codeName + AppConst.config.buildLuaCodeExtName);
+                    if (remoteItem == null)
+                    {
+                        onUpdateFail?.Invoke();
+                        Debug.LogError("代码配置上找不到模块关联的代码包:moduleName:" + moduleName + "  codePackageName:" + codeName);
+                        yield break;
+                    }
+
+                    //与远程文件MD5值不一致，添加到下载列表
+                    if (!AssetVersion.localCodeFileList.ContainsMd5(remoteItem))
+                    {
+                        string url = GetFileUrl(codeModuleName, remoteItem.name);
+                        FileItem updateItem = new FileItem
+                        {
+                            url = url,
+                            moduleName = codeModuleName,
+                            fileItem = remoteItem
+                        };
+                        updateCodeFileList.UpdateItem(remoteItem);
+                        updateItems.Enqueue(updateItem);
+                        totalSize += remoteItem.size;
+                    }
+                }
+            }
+
 
             //检测更新完成
 
@@ -176,11 +210,14 @@ namespace GameFramework.Runtime.Assets
             onNotifyUpdateAsset?.Invoke();
         }
 
-        private string GetFileUrl(string module, int version, string fileName)
+        private string GetFileUrl(string module, string fileName)
         {
             if (module.Equals(AppConst.config.configModuleName))//是否是配置路径
                 return AppConst.config.configUrl + fileName;
-            return AppConst.GetModuleUrl(module) + version + "/" + fileName;
+            if (module.Equals(AppConst.config.codeModuleName))//是否是lua代码包路径
+                return AppConst.LuaCodeUrl + fileName;
+            //return AppConst.GetModuleUrl(module) + version + "/" + fileName;
+            return AppConst.GetModuleUrl(module) + fileName;
         }
 
         //加载本地模块文件数据
@@ -240,6 +277,7 @@ namespace GameFramework.Runtime.Assets
                 request.Dispose();
             }
 
+           
             downloadCount++;
             //资源更新完成
             if (downloadCount >= maxUpdateCount)
@@ -259,7 +297,7 @@ namespace GameFramework.Runtime.Assets
 
         //下载完成
         private void DownloadAssetComplete()
-        {
+        {           
             if (downloadComplete) return;
             downloadComplete = true;
             if (downloadErrorItems.Count > 0)//有未成功下载的资源
@@ -302,6 +340,10 @@ namespace GameFramework.Runtime.Assets
         private void SaveFileList(AssetFileEntity entity)
         {
             string path = AppConst.GetModulePath(entity.moduleName) + fileConfigName;
+            if (!Directory.Exists(Path.GetDirectoryName(path)))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+            }
             File.WriteAllText(path, JsonObject.Serialize(entity));
         }
 

@@ -18,7 +18,7 @@ namespace GameEditor.BuildAsset
         }//包名
         public string alias;//别名
         public List<BuildAssetData> dependPackage;//依赖包体
-        public List<DefaultAsset> codesPath;//代码包路径
+        public List<string> codesPackageName;
         public List<BuildAssetItem> buildAssets;//资源列表
 
         //获取深度资源依赖

@@ -6,7 +6,6 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BestHTTP;
 
 namespace GameFramework.Runtime.Network
 {
@@ -113,7 +112,7 @@ namespace GameFramework.Runtime.Network
             {
                 return default;
             }
-            return CatJson.JsonParser.ParseJson<T>(response);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(response);
         }
 
         /// <summary>
@@ -139,7 +138,7 @@ namespace GameFramework.Runtime.Network
             {
                 return default;
             }
-            return CatJson.JsonParser.ParseJson<T>(response);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(response);
         }
 
         /// <summary>
@@ -169,7 +168,7 @@ namespace GameFramework.Runtime.Network
             {
                 return default;
             }
-            return CatJson.JsonParser.ParseJson<T>(response);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(response);
         }
 
         /// <summary>
@@ -199,7 +198,7 @@ namespace GameFramework.Runtime.Network
             {
                 return default;
             }
-            return CatJson.JsonParser.ParseJson<T>(response);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(response);
         }
 
         /// <summary>
@@ -230,7 +229,7 @@ namespace GameFramework.Runtime.Network
             }
             if (data != null && data.Count > 0)
             {
-                string postData = CatJson.JsonParser.ToJson(data);
+                string postData = Newtonsoft.Json.JsonConvert.SerializeObject(data);
                 using (Stream stream = request.GetRequestStream())
                 {
                     stream.Write(UTF8Encoding.UTF8.GetBytes(postData));
@@ -278,7 +277,7 @@ namespace GameFramework.Runtime.Network
             }
             if (data != null && data.Count > 0)
             {
-                string postData = CatJson.JsonParser.ToJson(data);
+                string postData = Newtonsoft.Json.JsonConvert.SerializeObject(data);
                 using (Stream stream = request.GetRequestStream())
                 {
                     await stream.WriteAsync(UTF8Encoding.UTF8.GetBytes(postData));

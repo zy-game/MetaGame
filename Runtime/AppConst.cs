@@ -25,7 +25,7 @@ public static class AppConst
                 case RuntimePlatform.IPhonePlayer:
                     return "iOS";
             }
-            return "Windows";
+            return config.editorPlatform;
         }
     }
 
@@ -37,7 +37,7 @@ public static class AppConst
         }
     }
 
-    private static int mobilePlatform=-1;
+    private static int mobilePlatform = -1;
     public static bool IsMobilePlatform
     {
         get
@@ -56,7 +56,7 @@ public static class AppConst
         }
     }
 
-	public static string ConfigExtension
+    public static string ConfigExtension
     {
         get
         {
@@ -85,7 +85,7 @@ public static class AppConst
             if (Application.isEditor)
             {
                 string lcoalPath = Application.dataPath;
-                return lcoalPath.Substring(0, lcoalPath.Length - 6) + game + "/";
+                return $"{Application.dataPath}/../{game}/";// lcoalPath.Substring(0, lcoalPath.Length - 6) + game + "/";
             }
             return Application.dataPath + "/" + game + "/";
         }
@@ -168,10 +168,19 @@ public static class AppConst
 
     public static string GetModuleUrl(string moduleName)
     {
-        if (moduleName.Equals(config.configModuleName))//是否是配置路径
-            return config.configUrl;
-
         return config.asseturl + PlatformName + "/" + moduleName + "/";
+    }
+
+    //lua代码包下载地址
+    private static string luaCodeUrl;
+    public static string LuaCodeUrl
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(luaCodeUrl))
+                luaCodeUrl = config.asseturl + config.codeModuleName + "/";
+            return luaCodeUrl;
+        }
     }
 
     public static string GetModulePath(string moduleName)

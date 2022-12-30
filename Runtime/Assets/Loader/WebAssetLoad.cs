@@ -8,15 +8,10 @@ using System.Threading;
 namespace GameFramework.Runtime.Assets
 {
     ///从网络上加载资源
-    ///资源名唯一,不同玩家上传的同一位置的资源使用玩家id区分
-    ///相同类型的资源可以用版本号区分,同一位置使用的资源玩家每次上传更新的资源名带版本号
-    ///资源地址:http://wwww.test.com/assetserver/(玩家ID位置ID_版本.后缀名||资源名_版本.后缀名)
-    ///后缀名用于区分是什么类型的资源(*.png *.jpg|图片 *.mp3 *.wav *.ogg|音频 *.unity3d|ab包 *.mp4|视频文件 *.txt|文本 *.bin|二进制数据)
-    ///玩家ID_位置ID_版本用于判断是否替换本地资源和清理缓存
     public class WebAssetLoad : AssetLoad
     {
         private const string configName = "datalist.txt";
-        private long clearCacheLimitTicks =864000L* 10000000L;//缓存清理时间(10天)
+        private long clearCacheLimitTicks = 864000L * 10000000L;//缓存清理时间(10天)
 
         private Dictionary<string, AssetHandle> assetHandleMap;//资源缓存
         private LocalWebAssetConfig localAssetConfig;//本地资源配置
@@ -81,12 +76,16 @@ namespace GameFramework.Runtime.Assets
 
         private IEnumerator LoadCor(string url, AssetLoadAsync loadAsync)
         {
+            yield return null;
             string path = url;
-
             string assetName = string.Empty;
-            string assetVersion = string.Empty;
+            string assetVersion = loadAsync.param;
             string ext = string.Empty;
-            GetUrlInfo(url, ref assetName, ref assetVersion, ref ext);
+
+            if (string.IsNullOrEmpty(assetVersion))
+                assetVersion = "0";
+
+            GetUrlInfo(url, ref assetName, ref ext);
 
             if (string.IsNullOrEmpty(assetName))
             {
@@ -100,7 +99,7 @@ namespace GameFramework.Runtime.Assets
             if (localAssetConfig.HasAsset(assetName))//本地是否有这个资源
             {
                 localItem = localAssetConfig.GetAssetItem(assetName);
-                if (localItem.version.Equals(assetVersion))//对比本地和要下载的资源版本号
+                if (assetVersion.Equals(localItem.version))//对比本地和要下载的资源版本号
                 {
                     //版本号一致,从本地加载
                     path = AppConst.WebDataCachePath + assetName;
@@ -114,12 +113,10 @@ namespace GameFramework.Runtime.Assets
                 }
             }
             else
-            {
                 localItem = new LocalWebAssetItem();
-                localItem.name = assetName;
-                localItem.version = assetVersion;
-                localItem.ext = ext;
-            }
+            localItem.name = assetName;
+            localItem.version = assetVersion;
+            localItem.ext = ext;
 
             RomoteAssetType assetType = GetAssetType(ext);
 
@@ -151,14 +148,14 @@ namespace GameFramework.Runtime.Assets
                     {
                         curLoadingAssetName = string.Empty;
                         //不是从网络下载并且本地不存在，尝试重新从网络上下载
-                        if (!path.StartsWith("http")&&!File.Exists(path))
+                        if (!path.StartsWith("http") && !File.Exists(path))
                         {
                             localAssetConfig.RemoveItem(assetName);
                             CorManager.Instance.StartCoroutine(LoadCor(url, loadAsync));
                             yield break;
                         }
-                        Debug.LogError("下载资源错误:" + path + "\n" + request.error);                       
-                        loadAsync.Finished(null);                        
+                        Debug.LogError("下载资源错误:" + path + "\n" + request.error);
+                        loadAsync.Finished(null);
                         yield break;
                     }
 
@@ -192,8 +189,8 @@ namespace GameFramework.Runtime.Assets
                 }
                 else
                 {
-                    UpdateLocalConfig();
                     localItem.lastTime = System.DateTime.Now.Ticks;
+                    UpdateLocalConfig();
                     loadAsync.Finished(assetHandle);
                 }
                 curLoadingAssetName = string.Empty;
@@ -236,19 +233,15 @@ namespace GameFramework.Runtime.Assets
         }
 
         //获取资源名(玩家ID_位置ID)
-        private void GetUrlInfo(string url, ref string assetName, ref string version, ref string ext)
+        private void GetUrlInfo(string url, ref string assetName, ref string ext)
         {
             int index = url.LastIndexOf("/");
             if (index == -1 || url.Length <= index + 1) return;
             string endcontent = url.Substring(index + 1);
-            index = endcontent.IndexOf("_");
+            index = endcontent.IndexOf(".");
             if (index == -1) return;
             assetName = endcontent.Substring(0, index);
             if (endcontent.Length < index + 1) return;
-            endcontent = endcontent.Substring(index + 1);
-            index = endcontent.IndexOf(".");
-            if (index == -1) return;
-            version = endcontent.Substring(0, index);
             endcontent = endcontent.Substring(index);
             index = endcontent.IndexOf("?");
             if (index == -1)
@@ -261,9 +254,7 @@ namespace GameFramework.Runtime.Assets
                 if (endcontent.Length <= index) return;
                 ext = endcontent.Substring(0, index);
             }
-
-            if (ext.Equals(".mp4"))
-                assetName += ext;
+            assetName += ext;
         }
 
         private RomoteAssetType GetAssetType(string ext)
@@ -347,7 +338,7 @@ namespace GameFramework.Runtime.Assets
             bool clearFinished = false;//清理完成
             List<string> clearAssetNames = new List<string>();
             new Thread(() =>
-            {               
+            {
                 foreach (var v in needClearItems)
                 {
                     //已经重新加载了或者正在加载这个资源
@@ -362,7 +353,7 @@ namespace GameFramework.Runtime.Assets
                     clearAssetNames.Add(v.name);
                     curClearAssetName = v.name;
                     Thread.Sleep(100);//延时删除,保证主线程能有效获取到当前删除的资源名
-                    File.Delete(delPath);                 
+                    File.Delete(delPath);
                     Thread.Sleep(100);
                     curClearAssetName = string.Empty;
                 }
@@ -429,7 +420,7 @@ namespace GameFramework.Runtime.Assets
             public string version;//资源版本
             public long lastTime; //最后一次使用时间
             public int size;//资源大小
-            public string ext;//资源后缀
+            public string ext;//资源后缀            
         }
     }
 

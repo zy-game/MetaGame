@@ -2,24 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BehaviourGame
+namespace GameFramework.Runtime.Behaviour
 {
     public class BehaviourManager 
     {
-        private static BehaviourManager instance;
-
-        public static BehaviourManager Instance
-        {
-            get
-            {
-                if (instance == null)
-                {
-                    instance = new BehaviourManager();
-                }
-                return instance;
-            }
-        }
-
         List<BehaviourEntity> behaviourDic = new List<BehaviourEntity>();
 
 
@@ -30,6 +16,11 @@ namespace BehaviourGame
                 return;
             }
             behaviourDic.Add(entity);
+        }
+
+        public void AddBehaviourHandler(BehaviourHandle handle)
+        {
+        
         }
 
         public void Trigger(string guid,string state,params object[] obj)

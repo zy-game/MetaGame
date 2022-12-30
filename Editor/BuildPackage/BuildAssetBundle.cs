@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using GameFramework.Runtime;
 using GameFramework.Runtime.Assets;
 
 namespace GameEditor.BuildAsset
@@ -20,14 +21,7 @@ namespace GameEditor.BuildAsset
             this.assetData = assetData;
             this.platformName = platformName;
 
-            string localConfigPath = AppConst.AppConfigPath;
-            if (!File.Exists(localConfigPath))
-            {
-                Debug.LogError("找不到本地配置:" + localConfigPath);
-                return;
-            }
-
-            localConfig = JsonObject.Deserialize<LocalCommonConfig>(File.ReadAllText(localConfigPath));
+            localConfig = LocalCommonConfig.Get();
             Build();
         }
 
@@ -45,14 +39,14 @@ namespace GameEditor.BuildAsset
                 var dependPackage = BuildAssetData.GetDephDepends(assetData);
                 foreach (var depend in dependPackage)
                 {
-                    Debug.Log("依赖包体:"+depend.moduleName);
-                    var dependItems= GetAssetBundleBuilds(depend);
+                    Debug.Log("依赖包体:" + depend.moduleName);
+                    var dependItems = GetAssetBundleBuilds(depend);
                     builds.AddRange(dependItems);
                 }
             }
             RemoveSurplusAssets(builds, outpath);
             BuildPipeline.BuildAssetBundles(outpath, builds.ToArray(), BuildAssetBundleOptions.None, EditorUserBuildSettings.activeBuildTarget);
-            BuildCode(outpath + assetData.moduleName + "/");
+            //BuildCode(outpath + assetData.moduleName + "/");
             CopyToCacheDir(bundles);
         }
 
@@ -61,7 +55,7 @@ namespace GameEditor.BuildAsset
             if (assetData == null)
             {
                 Debug.LogError("选择的依赖资源为空!");
-                return new List<AssetBundleBuild>();       
+                return new List<AssetBundleBuild>();
             }
 
             string root = AssetDatabase.GetAssetPath(assetData.assetRoot) + "/";
@@ -72,7 +66,7 @@ namespace GameEditor.BuildAsset
             foreach (var v in assetData.buildAssets)
             {
                 AssetBundleBuild bundle = new AssetBundleBuild();
-                bundle.assetBundleName = packageName + Path.ChangeExtension(v.path.Replace(root, ""), assetConfig.extName).ToLower();
+                bundle.assetBundleName = packageName + Path.ChangeExtension(v.path.Replace(root, ""), localConfig.assetBundleExtName).ToLower();
                 bundle.assetNames = new string[] { v.path };
                 bundles.Add(bundle);
 
@@ -83,13 +77,13 @@ namespace GameEditor.BuildAsset
         //获取打包输出路径
         private string GetOutPath()
         {
-            return assetConfig.buildRootPath + BuildAssetConfig.buildTempPath + platformName + "/" + assetData.moduleName + "_temp/";
+            return BuildAssetConfig.buildRootPath + BuildAssetConfig.buildTempPath + platformName + "/" + assetData.moduleName + "_temp/";
         }
 
         //获取缓存路径
         private string GetCachePath()
         {
-            return assetConfig.buildRootPath + BuildAssetConfig.buildCachePath + platformName + "/" + assetData.moduleName + "_cache/";
+            return BuildAssetConfig.buildRootPath + BuildAssetConfig.buildCachePath + platformName + "/" + assetData.moduleName + "_cache/";
         }
 
         private string[] GetFiles(string path)
@@ -98,7 +92,7 @@ namespace GameEditor.BuildAsset
             List<string> list = new List<string>();
             foreach (var file in files)
             {
-                if (file.EndsWith(assetConfig.extName) || file.EndsWith(localConfig.buildLuaCodeExtName))
+                if (file.EndsWith(localConfig.assetBundleExtName) || file.EndsWith(localConfig.buildLuaCodeExtName))
                     list.Add(file);
             }
             return list.ToArray();
@@ -183,16 +177,7 @@ namespace GameEditor.BuildAsset
 
             //拷贝manifest文件
             string manifestPath = outpath + assetData.moduleName + "_temp";
-            string newManifestPath = versionCachepath + assetData.moduleName + assetConfig.extName;
-
-            //拷贝lua代码
-            string[] luasPath = Directory.GetFiles(outpath + assetData.moduleName, "*" + localConfig.buildLuaCodeExtName, SearchOption.AllDirectories);
-            foreach (var v in luasPath)
-            {
-                string name = Path.GetFileName(v);
-                string newPath = versionCachepath + name;
-                File.Copy(v, newPath);
-            }
+            string newManifestPath = versionCachepath + assetData.moduleName + localConfig.assetBundleExtName;
 
 
             if (!File.Exists(manifestPath))
@@ -220,25 +205,34 @@ namespace GameEditor.BuildAsset
                 }
             }
 
-            GenerateFileList(versionCachepath, version);
+            //GenerateFileList(versionCachepath, version);
+            AssetManager.GenerateFileList(versionCachepath, version, assetData.moduleName, new string[] { localConfig.assetBundleExtName, ".bytes" });
 
             UpdateVersionFile(version);
 
             Debug.Log("打包完成:" + versionCachepath);
-            System.Diagnostics.Process.Start("explorer.exe", versionCachepath.Replace("/", @"\"));
+            //System.Diagnostics.Process.Start("explorer.exe", versionCachepath.Replace("/", @"\"));
 
         }
 
         //生成文件列表
         private void GenerateFileList(string path, int version)
         {
-            path = NormalizePath(path);
+            path = path.Replace(@"\", "/");
             AssetFileEntity fileEntity = new AssetFileEntity();
             fileEntity.files = new List<AssetFileEntity.FileItem>();
-            string[] files = GetFiles(path);
+
+            string[] files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+            List<string> list = new List<string>();
             foreach (var file in files)
             {
-                string name = NormalizePath(file).Replace(path, "");
+                if (file.EndsWith(localConfig.assetBundleExtName) || file.EndsWith(localConfig.buildLuaCodeExtName))
+                    list.Add(file);
+            }
+            files = list.ToArray();
+            foreach (var file in files)
+            {
+                string name = file.Replace(@"\", "/").Replace(path, "");
                 string md5 = Util.md5file(file);
                 int size = (int)new FileInfo(file).Length;
                 var item = new AssetFileEntity.FileItem();
@@ -255,17 +249,18 @@ namespace GameEditor.BuildAsset
         //更新版本文件
         private void UpdateVersionFile(int version)
         {
-            string path = assetConfig.buildRootPath + BuildAssetConfig.buildCachePath + platformName + "/" + "version.txt";
-            AssetVersion assetVersion = null;
+            string path = BuildAssetConfig.buildRootPath + BuildAssetConfig.buildCachePath + platformName + "/" + "version.txt";
+            AssetVersion assetVersion;
             if (File.Exists(path))
                 assetVersion = JsonObject.Deserialize<AssetVersion>(File.ReadAllText(path));
             else
             {
                 assetVersion = new AssetVersion();
-                assetVersion.versionMap = new Dictionary<string, int>();                
+                assetVersion.versionMap = new Dictionary<string, int>();
             }
-
-            if (assetVersion.dependsMap == null) assetVersion.dependsMap = new Dictionary<string, string[]>();
+            if (assetVersion.versionMap == null) assetVersion.versionMap = new();
+            if (assetVersion.dependsMap == null) assetVersion.dependsMap = new();
+            if (assetVersion.codeLinkMap == null) assetVersion.codeLinkMap = new();
             string[] depends;
             if (assetData.dependPackage != null)
             {
@@ -280,42 +275,11 @@ namespace GameEditor.BuildAsset
             {
                 depends = new string[0];
             }
-            assetVersion.UpdateDepends(assetData.moduleName,depends);
+            assetVersion.UpdateDepends(assetData.moduleName, depends);
             assetVersion.UpdateVersion(assetData.moduleName, version);
+            assetVersion.UpdateLinkCodePackage(assetData.moduleName,assetData.codesPackageName.ToArray());
             assetVersion.packageVersion = localConfig.version;
             File.WriteAllText(path, JsonObject.Serialize(assetVersion));
-
-        }
-
-        //打包代码文件
-        private void BuildCode(string outPath)
-        {
-            if (!Directory.Exists(outPath)) Directory.CreateDirectory(outPath);
-            //删除原有的所有lua代码
-            string[] files = Directory.GetFiles(outPath, "*" + localConfig.buildLuaCodeExtName);
-            foreach (string file in files)
-            {
-                File.Delete(file);
-            }
-
-            if (assetData.codesPath == null) return;
-
-            Dictionary<string, byte[]> luabytes = new Dictionary<string, byte[]>();
-            //打包lua
-            foreach (DefaultAsset luaAsset in assetData.codesPath)
-            {
-                if (luaAsset == null) continue;
-                string name = luaAsset.name.ToLower();
-                byte[] bts = new LuaBuildBytes(luaAsset).Build();
-                if (bts == null) continue;
-                luabytes.Add(name, bts);
-            }
-
-            foreach (var v in luabytes)
-            {
-                string filePath = outPath + v.Key + localConfig.buildLuaCodeExtName;
-                File.WriteAllBytes(filePath, v.Value);
-            }
 
         }
     }

@@ -4,46 +4,28 @@ using UnityEngine;
 using GameFramework.Runtime.Assets;
 using GameFramework.Runtime.Game;
 using UnityEngine.Networking;
-
-public class GameManager : MonoBehaviour
+namespace GameFramework.Runtime
 {
-    IEnumerator Start()
-    { 
-        Application.targetFrameRate = 60;
-        DontDestroyOnLoad(gameObject);
-        yield return AppConst.LoadLocalConfig();
-        yield return new VersionManager().Init();
-        ResourcesManager.Instance.Init();
-        LuaManager.Instance.Init();
-        LuaManager.Instance.DoString("require 'Main/Game'");
-        GlobalEvent.Notify(EventName.EnterGame);
-
-    }
-
-    private void Update()
+    public class GameManager : MonoBehaviour
     {
-        if (GameWorld.current == null)
+        public Vector2 SceneSize;
+        IEnumerator Start()
         {
-            return;
+            DontDestroyOnLoad(gameObject);
+            yield return AppConst.LoadLocalConfig();
+            ResourcesManager.Instance.Init();
+            LuaManager.Instance.Init();
+            GameWorld.CreateWorld<StarboottWorld>(AppConst.config.mainModuleName, SceneSize);
+            yield return new VersionManager().Init();
         }
-        GameWorld.current.Update();
-    }
+        public class StarboottWorld : GameWorld
+        {
+            public override void Awake()
+            {
 
-    private void LateUpdate()
-    {
-        if (GameWorld.current == null)
-        {
-            return;
+                GlobalEvent.Notify(EventName.EnterGame);
+                base.Awake();
+            }
         }
-        GameWorld.current.LateUpdate();
-    }
-
-    private void FixedUpdate()
-    {
-        if (GameWorld.current == null)
-        {
-            return;
-        }
-        GameWorld.current.FixedUpdate();
     }
 }
